@@ -2,8 +2,15 @@ export interface StockInfo {
   ticker: string;
   name: string;
   category: 'Large-Cap (Nifty 100)' | 'Mid-Cap (Nifty Midcap 150)';
+  sector: string;
   instrumentKey: string;
   basePrice: number;
+}
+
+export interface SectorOption {
+  id: string;
+  name: string;
+  shortLabel: string;
 }
 
 export interface MarketBaseline {

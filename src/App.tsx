@@ -21,6 +21,14 @@ import {
   INITIAL_DATABASE_RECORDS 
 } from './mockData';
 import { QuantitativeSignal, SuggestionRecord, PortfolioSummary } from './types';
+import { 
+  ALL_INDIAN_STOCKS_UNIVERSE, 
+  NIFTY_100_STOCKS, 
+  NIFTY_MIDCAP_150_STOCKS, 
+  evaluateAnyStock,
+  PRIMARY_SECTORS,
+  stockMatchesSelectedSectors
+} from './stockUniverse';
 
 export default function App() {
   // Navigation State
@@ -32,6 +40,7 @@ export default function App() {
   const [upstoxAccessToken, setUpstoxAccessToken] = useState<string>('');
   const [sandboxMode, setSandboxMode] = useState<boolean>(true);
   const [universeChoice, setUniverseChoice] = useState<string>('ALL');
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
   const [minConviction, setMinConviction] = useState<number>(65);
 
   // Market & Predictions Data State
@@ -158,18 +167,18 @@ export default function App() {
   // Execute Multi-Factor Quantitative Scan
   const handleRunScan = () => {
     setIsScanning(true);
-    setScanStep('1/5 Ingesting 2-3 Year Daily OHLCV from Upstox...');
+    setScanStep('1/5 Ingesting 2-3 Year Daily OHLCV from Upstox (Universe Master)...');
 
     setTimeout(() => {
       setScanStep('2/5 Computing Momentum (RSI, MACD, Dual EMA, Supertrend)...');
     }, 400);
 
     setTimeout(() => {
-      setScanStep('3/5 Evaluating Volatility, ATR & ADX Trend Strength...');
+      setScanStep('3/5 Evaluating Volatility, ATR & ADX Trend Strength across Universe...');
     }, 800);
 
     setTimeout(() => {
-      setScanStep('4/5 Running 12-Month Vectorized Backtest Simulation...');
+      setScanStep('4/5 Running 12-Month Vectorized Backtest Simulation on Equities...');
     }, 1200);
 
     setTimeout(() => {
@@ -177,19 +186,74 @@ export default function App() {
     }, 1600);
 
     setTimeout(() => {
-      // Filter candidates based on conviction score and universe
-      let filtered = INITIAL_SIGNALS.filter((s) => s.convictionScore >= minConviction);
+      let pool = ALL_INDIAN_STOCKS_UNIVERSE;
       if (universeChoice === 'LARGE') {
-        filtered = filtered.filter((s) => s.marketCapCategory.includes('Large-Cap'));
+        pool = NIFTY_100_STOCKS;
       } else if (universeChoice === 'MID') {
-        filtered = filtered.filter((s) => s.marketCapCategory.includes('Mid-Cap'));
+        pool = NIFTY_MIDCAP_150_STOCKS;
       }
 
-      setSignals(filtered);
+      // Filter scanning pool by selected sectors if configured
+      if (selectedSectors.length > 0) {
+        pool = pool.filter((stock) => stockMatchesSelectedSectors(stock, selectedSectors));
+      }
+
+      if (pool.length === 0) {
+        setSignals([]);
+        setRejectedSignals([]);
+        setIsScanning(false);
+        setScanStep('');
+        showToast('No stocks found matching the active universe and sector filters.');
+        return;
+      }
+
+      // Sample and evaluate stocks across the filtered sector pool
+      const approved: QuantitativeSignal[] = [];
+      const rejected: { ticker: string; category: string; convictionScore: number; backtestWinRate: number; backtestMdd: number; rejectionReason: string }[] = [];
+
+      // Evaluate candidates from the filtered pool
+      const candidatesToScan = pool.slice(0, Math.min(pool.length, 45));
+      candidatesToScan.forEach((stock) => {
+        const evalRes = evaluateAnyStock(stock.ticker);
+        if (evalRes.passesFilter && evalRes.signal.convictionScore >= minConviction) {
+          approved.push(evalRes.signal);
+        } else if (!evalRes.passesFilter) {
+          rejected.push({
+            ticker: evalRes.signal.ticker,
+            category: evalRes.signal.marketCapCategory,
+            convictionScore: evalRes.signal.convictionScore,
+            backtestWinRate: evalRes.signal.backtestWinRate,
+            backtestMdd: evalRes.signal.backtestMdd,
+            rejectionReason: evalRes.rejectionReason || 'Failed Sanity Criteria',
+          });
+        }
+      });
+
+      // Sort approved by highest conviction score
+      approved.sort((a, b) => b.convictionScore - a.convictionScore);
+
+      setSignals(approved);
+      setRejectedSignals(rejected);
       setIsScanning(false);
       setScanStep('');
-      showToast(`Scan complete: ${filtered.length} candidates approved by Sanity Filter!`);
+
+      const sectorLabel = selectedSectors.length > 0
+        ? selectedSectors.map((id) => PRIMARY_SECTORS.find((s) => s.id === id)?.shortLabel || id).join(', ')
+        : 'All Sectors';
+
+      showToast(`Scan complete: ${approved.length} candidates approved across ${pool.length} equities (${sectorLabel})!`);
     }, 2000);
+  };
+
+  const handleAddNewSignal = (newSignal: QuantitativeSignal) => {
+    setSignals((prev) => {
+      const exists = prev.some((s) => s.ticker === newSignal.ticker);
+      if (exists) {
+        return prev.map((s) => (s.ticker === newSignal.ticker ? newSignal : s));
+      }
+      return [newSignal, ...prev];
+    });
+    showToast(`Added ${newSignal.ticker} (${newSignal.companyName}) to active candidates!`);
   };
 
   // Save approved suggestions to SQLite database
@@ -299,6 +363,8 @@ export default function App() {
         setSandboxMode={setSandboxMode}
         universeChoice={universeChoice}
         setUniverseChoice={setUniverseChoice}
+        selectedSectors={selectedSectors}
+        setSelectedSectors={setSelectedSectors}
         minConviction={minConviction}
         setMinConviction={setMinConviction}
         onSeedDatabase={handleSeedDatabase}
@@ -370,6 +436,16 @@ export default function App() {
           <div className="hidden sm:flex items-center space-x-3 text-xs">
             <span className="text-zinc-400">Database: <code className="text-[#4A90E2] font-mono">{dbPath}</code></span>
             <span className="h-3 w-px bg-[#1E1E24]"></span>
+            <span className="text-zinc-400">
+              Sectors: <strong className="text-zinc-200">
+                {selectedSectors.length === 0
+                  ? 'All Sectors'
+                  : `${selectedSectors.length} Selected (${selectedSectors
+                      .map((id) => PRIMARY_SECTORS.find((p) => p.id === id)?.shortLabel || id)
+                      .join(', ')})`}
+              </strong>
+            </span>
+            <span className="h-3 w-px bg-[#1E1E24]"></span>
             <span className="text-zinc-400">Timeframe: <strong className="text-zinc-200">Daily (3-6M Swing)</strong></span>
           </div>
         </header>
@@ -383,9 +459,11 @@ export default function App() {
               rejectedSignals={rejectedSignals}
               isScanning={isScanning}
               scanStep={scanStep}
+              selectedSectors={selectedSectors}
               onRunScan={handleRunScan}
               onSaveToDatabase={handleSaveToDatabase}
               onExportCsv={handleExportCsv}
+              onAddSignal={handleAddNewSignal}
             />
           )}
 

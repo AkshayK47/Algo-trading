@@ -11,9 +11,16 @@ import {
   Layers,
   Sparkles,
   ArrowUpRight,
-  BarChart3
+  BarChart3,
+  Search,
+  Zap,
+  BookOpen,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { MarketBaseline, QuantitativeSignal } from '../types';
+import { UniverseExplorerModal } from './UniverseExplorerModal';
+import { ALL_INDIAN_STOCKS_UNIVERSE, evaluateAnyStock, PRIMARY_SECTORS } from '../stockUniverse';
 
 interface MarketAnalyticsTabProps {
   baselines: Record<string, MarketBaseline>;
@@ -21,9 +28,11 @@ interface MarketAnalyticsTabProps {
   rejectedSignals: { ticker: string; category: string; convictionScore: number; backtestWinRate: number; backtestMdd: number; rejectionReason: string }[];
   isScanning: boolean;
   scanStep: string;
+  selectedSectors?: string[];
   onRunScan: () => void;
   onSaveToDatabase: (signals: QuantitativeSignal[]) => void;
   onExportCsv: (signals: QuantitativeSignal[]) => void;
+  onAddSignal?: (signal: QuantitativeSignal) => void;
 }
 
 export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
@@ -32,16 +41,52 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
   rejectedSignals,
   isScanning,
   scanStep,
+  selectedSectors = [],
   onRunScan,
   onSaveToDatabase,
   onExportCsv,
+  onAddSignal,
 }) => {
   const [selectedStockId, setSelectedStockId] = useState<string>(signals[0]?.id || '1');
   const [showRejections, setShowRejections] = useState<boolean>(false);
+  const [isExplorerOpen, setIsExplorerOpen] = useState<boolean>(false);
+  const [customTickerInput, setCustomTickerInput] = useState<string>('');
+  const [quickScanFeedback, setQuickScanFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isQuickScanning, setIsQuickScanning] = useState<boolean>(false);
 
   const selectedStock = signals.find((s) => s.id === selectedStockId) || signals[0];
   const n50 = baselines.NIFTY_50;
   const nn50 = baselines.NIFTY_NEXT_50;
+
+  const handleQuickScan = (tickerToScan?: string) => {
+    const sym = (tickerToScan || customTickerInput).trim().toUpperCase();
+    if (!sym) return;
+
+    setIsQuickScanning(true);
+    setQuickScanFeedback(null);
+
+    setTimeout(() => {
+      const result = evaluateAnyStock(sym);
+      setIsQuickScanning(false);
+
+      if (result.passesFilter) {
+        if (onAddSignal) {
+          onAddSignal(result.signal);
+        }
+        setSelectedStockId(result.signal.id);
+        setQuickScanFeedback({
+          type: 'success',
+          message: `✅ ${result.signal.ticker} approved! Conviction: ${result.signal.convictionScore}/100 | Win Rate: ${result.signal.backtestWinRate}% | MDD: ${result.signal.backtestMdd}%`,
+        });
+      } else {
+        setQuickScanFeedback({
+          type: 'error',
+          message: `⚠️ ${sym} rejected by Sanity Filter: ${result.rejectionReason}`,
+        });
+      }
+      setCustomTickerInput('');
+    }, 400);
+  };
 
   return (
     <div className="space-y-6">
@@ -115,12 +160,12 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
 
       {/* 2. Screener Execution Control Bar */}
       <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center space-x-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <button
             id="btn-run-quantitative-scan"
             onClick={onRunScan}
             disabled={isScanning}
-            className="w-full md:w-auto px-5 py-2.5 bg-[#4A90E2] hover:bg-[#3B82F6] text-white rounded-md text-sm font-bold shadow-lg shadow-[#4A90E2]/25 transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+            className="px-5 py-2.5 bg-[#4A90E2] hover:bg-[#3B82F6] text-white rounded-md text-sm font-bold shadow-lg shadow-[#4A90E2]/25 transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
           >
             {isScanning ? (
               <>
@@ -134,6 +179,33 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
               </>
             )}
           </button>
+
+          <button
+            id="btn-browse-stock-universe"
+            onClick={() => setIsExplorerOpen(true)}
+            className="px-4 py-2.5 bg-[#181820] hover:bg-[#22222E] text-white border border-[#2B2B36] hover:border-[#4A90E2]/60 rounded-md text-sm font-semibold transition flex items-center space-x-2 cursor-pointer shadow-sm"
+          >
+            <Layers className="w-4 h-4 text-[#4A90E2]" />
+            <span>Browse Universe Master</span>
+            <span className="text-[11px] bg-[#4A90E2]/20 text-[#60A5FA] px-1.5 py-0.5 rounded font-mono">250 Stocks</span>
+          </button>
+
+          {/* Active Sector Scope Pill */}
+          {selectedSectors.length > 0 ? (
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-[#4A90E2]/10 border border-[#4A90E2]/25 text-xs text-zinc-300">
+              <span className="text-[#60A5FA] font-medium">Sectors:</span>
+              <span className="font-semibold text-white">
+                {selectedSectors
+                  .map((id) => PRIMARY_SECTORS.find((p) => p.id === id)?.shortLabel || id)
+                  .join(', ')}
+              </span>
+            </div>
+          ) : (
+            <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md bg-[#16161A] border border-[#23232A] text-xs text-zinc-400">
+              <span>Pool:</span>
+              <span className="text-zinc-300">All Sectors (IT, Banking, FMCG, Auto...)</span>
+            </div>
+          )}
 
           {isScanning && (
             <div className="text-xs text-emerald-400 font-mono animate-pulse">
@@ -161,6 +233,106 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 2b. Dynamic On-Demand Ticker Scanner */}
+      <div className="bg-[#141418] border border-[#1E1E24] rounded-lg p-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                Instant Single-Stock Scanner
+              </span>
+              <p className="text-[11px] text-zinc-400">
+                Type any NSE ticker to compute full quantitative indicators & 12-month backtest sanity filters on demand
+              </p>
+            </div>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleQuickScan();
+            }}
+            className="flex items-center space-x-2 w-full sm:w-auto"
+          >
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={customTickerInput}
+                onChange={(e) => setCustomTickerInput(e.target.value)}
+                placeholder="e.g. HAL, ZOMATO, IRFC, BEL, DIXON..."
+                className="w-full bg-[#1A1A22] border border-[#2B2B38] rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#4A90E2] uppercase font-mono"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isQuickScanning || !customTickerInput.trim()}
+              className="px-3.5 py-1.5 bg-[#1E1E28] hover:bg-[#4A90E2] text-zinc-200 hover:text-white border border-[#2B2B38] hover:border-[#4A90E2] rounded-md text-xs font-semibold transition flex items-center space-x-1.5 disabled:opacity-40 cursor-pointer"
+            >
+              {isQuickScanning ? (
+                <span>Evaluating...</span>
+              ) : (
+                <>
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Scan Ticker</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Quick Ticker Shortcuts */}
+        <div className="mt-2.5 pt-2.5 border-t border-[#1E1E24]/60 flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="text-zinc-500 text-[10px] uppercase font-semibold mr-1">Popular Equities:</span>
+          {['HAL', 'ZOMATO', 'IRFC', 'BEL', 'DIXON', 'TRENT', 'TATAPOWER', 'RVNL', 'PERSISTENT', 'POLYCAB'].map((tick) => (
+            <button
+              key={tick}
+              onClick={() => handleQuickScan(tick)}
+              className="px-2 py-0.5 bg-[#1A1A20] hover:bg-[#242430] hover:text-[#4A90E2] text-zinc-400 rounded border border-[#23232A] font-mono text-[10px] transition"
+            >
+              +{tick}
+            </button>
+          ))}
+        </div>
+
+        {/* Quick Scan Toast Feedback */}
+        {quickScanFeedback && (
+          <div
+            className={`mt-2 p-2 rounded text-xs font-medium flex items-center space-x-2 animate-in fade-in duration-150 ${
+              quickScanFeedback.type === 'success'
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+            }`}
+          >
+            {quickScanFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            <span>{quickScanFeedback.message}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Universe Explorer Modal */}
+      <UniverseExplorerModal
+        isOpen={isExplorerOpen}
+        onClose={() => setIsExplorerOpen(false)}
+        onSelectAndAnalyze={(signal) => {
+          if (onAddSignal) {
+            onAddSignal(signal);
+          }
+          setSelectedStockId(signal.id);
+          setQuickScanFeedback({
+            type: 'success',
+            message: `✅ Selected ${signal.ticker} from Universe Master! Conviction: ${signal.convictionScore}/100`,
+          });
+        }}
+      />
 
       {/* 3. Approved Predictions Table */}
       <div className="bg-[#111113] border border-[#1E1E24] rounded-lg overflow-hidden shadow-xl">

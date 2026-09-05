@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Monitor
 } from 'lucide-react';
+import { SectorMultiSelect } from './SectorMultiSelect';
 
 interface SidebarProps {
   dbPath: string;
@@ -22,6 +23,8 @@ interface SidebarProps {
   setSandboxMode: (enabled: boolean) => void;
   universeChoice: string;
   setUniverseChoice: (universe: string) => void;
+  selectedSectors: string[];
+  setSelectedSectors: (sectors: string[]) => void;
   minConviction: number;
   setMinConviction: (val: number) => void;
   onSeedDatabase: () => void;
@@ -39,6 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setSandboxMode,
   universeChoice,
   setUniverseChoice,
+  selectedSectors,
+  setSelectedSectors,
   minConviction,
   setMinConviction,
   onSeedDatabase,
@@ -179,6 +184,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <option value="MID">Mid-Cap Only (Nifty Midcap 150)</option>
               </select>
             </div>
+
+            {/* Multi-Select Sector Dropdown */}
+            <SectorMultiSelect
+              selectedSectors={selectedSectors}
+              onChange={setSelectedSectors}
+              universeChoice={universeChoice}
+            />
 
             <div>
               <div className="flex justify-between items-center text-xs mb-1">
