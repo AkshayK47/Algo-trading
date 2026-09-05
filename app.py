@@ -48,65 +48,146 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Professional institutional trading terminal CSS
+# Professional institutional trading terminal CSS matching React Preview UI
 st.markdown("""
 <style>
-    /* Metric Card Styling */
-    .metric-card {
-        background-color: #111827;
-        border: 1px solid #1F2937;
-        border-radius: 8px;
-        padding: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    /* Dark Terminal Theme Foundation */
+    .stApp {
+        background-color: #0E0E11;
+        color: #E2E8F0;
     }
-    .metric-value-green {
-        color: #10B981;
-        font-size: 24px;
+    
+    /* Institutional Card Container */
+    .quant-card {
+        background: #111113;
+        border: 1px solid #1E1E24;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .quant-card:hover {
+        border-color: #2E2E38;
+    }
+    
+    /* Benchmark Card Headers & Values */
+    .bench-label {
+        font-size: 11px;
         font-weight: 700;
-    }
-    .metric-value-red {
-        color: #EF4444;
-        font-size: 24px;
-        font-weight: 700;
-    }
-    .metric-value-cyan {
-        color: #06B6D4;
-        font-size: 24px;
-        font-weight: 700;
-    }
-    .metric-label {
-        color: #9CA3AF;
-        font-size: 12px;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.08em;
+        color: #94A3B8;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
+    .bench-price {
+        font-size: 26px;
+        font-weight: 800;
+        color: #FFFFFF;
+        margin: 6px 0 2px 0;
+        font-family: monospace;
+    }
+    .bench-footer {
+        font-size: 12px;
+        color: #94A3B8;
+        border-top: 1px solid #1E1E24;
+        padding-top: 8px;
+        margin-top: 8px;
+        display: flex;
+        justify-content: space-between;
+    }
+    .bench-badge-green {
+        background: rgba(16, 185, 129, 0.12);
+        color: #10B981;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .bench-badge-blue {
+        background: rgba(74, 144, 226, 0.12);
+        color: #60A5FA;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        border: 1px solid rgba(74, 144, 226, 0.25);
+    }
+    
+    /* Technical Factor Badges */
+    .tech-pill-container {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        margin: 16px 0;
+    }
+    @media (max-width: 900px) {
+        .tech-pill-container {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    .tech-pill {
+        background: #16161A;
+        border: 1px solid #23232A;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+    }
+    .tech-pill-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #94A3B8;
+        display: block;
+        margin-bottom: 2px;
+    }
+    .tech-pill-val {
+        font-size: 15px;
+        font-weight: 800;
+        font-family: monospace;
+    }
+    
     /* Tab Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 10px;
+        border-bottom: 1px solid #1E1E24;
+        padding-bottom: 4px;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 48px;
-        padding-left: 20px;
-        padding-right: 20px;
-        font-weight: 600;
-        font-size: 15px;
+        height: 44px;
+        padding: 0 18px;
+        font-weight: 700;
+        font-size: 14px;
+        background-color: #141418;
+        border: 1px solid #22222A;
+        border-radius: 8px 8px 0 0;
+        color: #94A3B8;
     }
-    /* Filter Badge */
-    .badge-approved {
-        background-color: #064E3B;
-        color: #6EE7B7;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 12px;
+    .stTabs [aria-selected="true"] {
+        background-color: #1C1C24 !important;
+        border-color: #4A90E2 !important;
+        color: #FFFFFF !important;
     }
-    .badge-rejected {
-        background-color: #7F1D1D;
-        color: #FCA5A5;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 12px;
+    
+    /* Streamlit DataFrame & Buttons Enhancement */
+    .stDataFrame {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #1E1E24;
+    }
+    button[kind="primary"] {
+        background: #4A90E2 !important;
+        border: none !important;
+        font-weight: 700 !important;
+        border-radius: 6px !important;
+    }
+    button[kind="secondary"] {
+        background: #181820 !important;
+        border: 1px solid #2B2B36 !important;
+        color: #E2E8F0 !important;
+        border-radius: 6px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -267,33 +348,66 @@ with tab_predictions:
         baselines = fetcher.fetch_market_baselines()
 
     col_nifty, col_next50, col_regime = st.columns(3)
+    n50 = baselines.get("NIFTY_50", {})
+    nn50 = baselines.get("NIFTY_NEXT_50", {})
+    market_bullish = n50.get("is_bullish", True)
+
     with col_nifty:
-        n50 = baselines.get("NIFTY_50", {})
-        st.metric(
-            label="NIFTY 50 (Large-Cap Benchmark)",
-            value=f"₹{n50.get('current_price', 24850.0):,.2f}",
-            delta=f"{n50.get('day_change_pct', 0.45):+.2f}% (1M: {n50.get('return_1m_pct', 2.1):+.1f}%)"
-        )
-        st.caption(f"Status: **{n50.get('regime', 'Strong Bullish')}** | 200 EMA: ₹{n50.get('ema_200', 23400.0):,.1f}")
+        p_n50 = n50.get('current_price', 24850.0)
+        c_n50 = n50.get('day_change_pct', 0.45)
+        r_n50 = n50.get('return_1m_pct', 2.1)
+        ema_n50 = n50.get('ema_200', 23400.0)
+        badge_cls_n50 = "bench-badge-green" if c_n50 >= 0 else "bench-badge-red"
+        st.markdown(f"""
+        <div class="quant-card">
+            <div class="bench-label">
+                <span>Nifty 50 (Large-Cap)</span>
+                <span class="{badge_cls_n50}">{c_n50:+.2f}%</span>
+            </div>
+            <div class="bench-price">₹{p_n50:,.2f}</div>
+            <div class="bench-footer">
+                <span>1M Return: <strong style="color: #10B981;">{r_n50:+.1f}%</strong></span>
+                <span>200 EMA: <strong style="color: #CBD5E1; font-family: monospace;">₹{ema_n50:,.1f}</strong></span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col_next50:
-        nn50 = baselines.get("NIFTY_NEXT_50", {})
-        st.metric(
-            label="NIFTY NEXT 50 (Mid-Cap Benchmark)",
-            value=f"₹{nn50.get('current_price', 72400.0):,.2f}",
-            delta=f"{nn50.get('day_change_pct', 0.82):+.2f}% (1M: {nn50.get('return_1m_pct', 3.8):+.1f}%)"
-        )
-        st.caption(f"Status: **{nn50.get('regime', 'Strong Bullish')}** | 200 EMA: ₹{nn50.get('ema_200', 68200.0):,.1f}")
+        p_nn50 = nn50.get('current_price', 72400.0)
+        c_nn50 = nn50.get('day_change_pct', 0.82)
+        r_nn50 = nn50.get('return_1m_pct', 3.8)
+        ema_nn50 = nn50.get('ema_200', 68200.0)
+        badge_cls_nn50 = "bench-badge-green" if c_nn50 >= 0 else "bench-badge-red"
+        st.markdown(f"""
+        <div class="quant-card">
+            <div class="bench-label">
+                <span>Nifty Next 50 (Mid-Cap)</span>
+                <span class="{badge_cls_nn50}">{c_nn50:+.2f}%</span>
+            </div>
+            <div class="bench-price">₹{p_nn50:,.2f}</div>
+            <div class="bench-footer">
+                <span>1M Return: <strong style="color: #10B981;">{r_nn50:+.1f}%</strong></span>
+                <span>200 EMA: <strong style="color: #CBD5E1; font-family: monospace;">₹{ema_nn50:,.1f}</strong></span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col_regime:
-        market_bullish = n50.get("is_bullish", True)
-        regime_title = "Favorable Expansion Regime" if market_bullish else "Defensive / Consolidation Regime"
-        st.metric(
-            label="Macro Quantitative Regime",
-            value=regime_title,
-            delta="Alpha Scan Active" if market_bullish else "Selective Breakout"
-        )
-        st.caption("Engine dynamically activates Adaptive Hybrid Breakouts during rangebound regimes.")
+        regime_title = "Favorable Expansion" if market_bullish else "Defensive / Consolidation"
+        regime_badge = "Alpha Scan Active" if market_bullish else "Selective Breakout"
+        st.markdown(f"""
+        <div class="quant-card">
+            <div class="bench-label">
+                <span>Multi-Factor Alpha Regime</span>
+                <span class="bench-badge-blue">{regime_badge}</span>
+            </div>
+            <div class="bench-price" style="font-size: 20px; color: #60A5FA;">{regime_title}</div>
+            <div class="bench-footer">
+                <span>Holding Horizon: <strong style="color: #E2E8F0;">3-6 Months</strong></span>
+                <span>Sanity Filter: <strong style="color: #10B981;">MDD ≤ 15% | WR ≥ 55%</strong></span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -302,15 +416,31 @@ with tab_predictions:
     # -------------------------------------------------------------------------
     st.subheader("⚡ Quick Scan Any Listed NSE Stock")
     st.caption("Test any specific stock ticker instantly through the full quantitative pipeline & sanity filter without scanning all 250 stocks.")
-    
+
+    # Popular stock shortcuts
+    st.markdown("<span style='font-size: 11px; font-weight: 700; color: #94A3B8; text-transform: uppercase;'>Popular Equities:</span>", unsafe_allow_html=True)
+    pop_cols = st.columns(8)
+    popular_ticks = ["HAL", "ZOMATO", "IRFC", "BEL", "DIXON", "TRENT", "TATAPOWER", "PERSISTENT"]
+    selected_pop = None
+    for i, tick in enumerate(popular_ticks):
+        with pop_cols[i]:
+            if st.button(f"+{tick}", key=f"btn_pop_{tick}", use_container_width=True):
+                selected_pop = tick
+
     col_sym_in, col_sym_btn = st.columns([3, 1])
+    default_input_val = selected_pop if selected_pop else "DIXON"
     with col_sym_in:
-        quick_ticker_input = st.text_input("Enter NSE Ticker Symbol:", value="DIXON", placeholder="e.g. RELIANCE, TCS, DIXON, KPITTECH, HAL, POLYCAB").strip().upper()
+        quick_ticker_input = st.text_input(
+            "Enter NSE Ticker Symbol:",
+            value=default_input_val,
+            placeholder="e.g. RELIANCE, TCS, DIXON, KPITTECH, HAL, POLYCAB",
+            key="quick_scan_input_ticker"
+        ).strip().upper()
     with col_sym_btn:
         st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
         run_quick_scan = st.button("🔍 Evaluate Stock Now", type="secondary", use_container_width=True)
 
-    if run_quick_scan and quick_ticker_input:
+    if (run_quick_scan or selected_pop) and quick_ticker_input:
         with st.spinner(f"Pulling historical data and analyzing {quick_ticker_input}..."):
             matched_key = f"NSE_EQ|{quick_ticker_input}"
             matched_cat = "Large-Cap (Nifty 100)"
@@ -360,7 +490,83 @@ with tab_predictions:
                 qc3.metric("Target (3-6M)", f"₹{sig_quick.target_price:,.2f}", f"+{reward_pct:.1f}% Gain")
                 qc4.metric("Risk : Reward", f"1 : {rr_ratio:.2f}", "Favorable Asymmetry")
                 qc5.metric("Sanity Verdict", "APPROVED" if bt_quick.passes_filter else "REJECTED", delta_color="normal" if bt_quick.passes_filter else "inverse")
-                st.caption(f"**Trade Setup:** {sig_quick.technical_justification}")
+
+                # Technical Factor Badges Container matching Preview
+                st.markdown(f"""
+                <div class="tech-pill-container">
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">RSI (14)</span>
+                        <span class="tech-pill-val" style="color: #38BDF8;">{sig_quick.rsi_14}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">MACD Hist</span>
+                        <span class="tech-pill-val" style="color: {'#10B981' if sig_quick.macd_hist >= 0 else '#EF4444'};">{sig_quick.macd_hist:+.2f}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">50 EMA</span>
+                        <span class="tech-pill-val" style="color: #F59E0B;">₹{sig_quick.ema_50:,.1f}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">200 EMA</span>
+                        <span class="tech-pill-val" style="color: #8B5CF6;">₹{sig_quick.ema_200:,.1f}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">Supertrend</span>
+                        <span class="tech-pill-val" style="color: #10B981;">{sig_quick.supertrend_direction}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">ADX (14)</span>
+                        <span class="tech-pill-val" style="color: #60A5FA;">{sig_quick.adx_14}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">ATR Volatility</span>
+                        <span class="tech-pill-val" style="color: #CBD5E1;">₹{sig_quick.atr_14:.1f}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"**Structural Justification:** `{sig_quick.technical_justification}`")
+
+                # Candlestick + Supertrend + EMA + RSI/MACD Subplots
+                df_quick_plot = df_quick_ind.iloc[-120:].copy()
+                fig_q = make_subplots(
+                    rows=3, cols=1,
+                    shared_xaxes=True,
+                    vertical_spacing=0.03,
+                    row_heights=[0.6, 0.2, 0.2]
+                )
+                fig_q.add_trace(
+                    go.Candlestick(
+                        x=df_quick_plot.index,
+                        open=df_quick_plot['open'],
+                        high=df_quick_plot['high'],
+                        low=df_quick_plot['low'],
+                        close=df_quick_plot['close'],
+                        name="OHLC"
+                    ),
+                    row=1, col=1
+                )
+                fig_q.add_trace(go.Scatter(x=df_quick_plot.index, y=df_quick_plot['ema_50'], name="50 EMA", line=dict(color="#F59E0B", width=1.5)), row=1, col=1)
+                fig_q.add_trace(go.Scatter(x=df_quick_plot.index, y=df_quick_plot['ema_200'], name="200 EMA", line=dict(color="#8B5CF6", width=2)), row=1, col=1)
+                fig_q.add_trace(go.Scatter(x=df_quick_plot.index, y=df_quick_plot['supertrend'], name="Supertrend", line=dict(color="#10B981", width=1.5, dash="dot")), row=1, col=1)
+
+                fig_q.add_trace(go.Scatter(x=df_quick_plot.index, y=df_quick_plot['rsi_14'], name="RSI (14)", line=dict(color="#38BDF8", width=1.5)), row=2, col=1)
+                fig_q.add_hline(y=70, line_dash="dash", line_color="#EF4444", row=2, col=1)
+                fig_q.add_hline(y=30, line_dash="dash", line_color="#10B981", row=2, col=1)
+
+                fig_q.add_trace(
+                    go.Bar(x=df_quick_plot.index, y=df_quick_plot['macd_hist'], name="MACD Hist", marker_color=np.where(df_quick_plot['macd_hist'] > 0, '#10B981', '#EF4444')),
+                    row=3, col=1
+                )
+                fig_q.update_layout(
+                    height=520,
+                    template="plotly_dark",
+                    plot_bgcolor="#0E0E11",
+                    paper_bgcolor="#0E0E11",
+                    margin=dict(l=20, r=20, t=30, b=20),
+                    xaxis_rangeslider_visible=False
+                )
+                st.plotly_chart(fig_q, use_container_width=True)
             else:
                 st.warning(f"Could not generate a valid setup for {quick_ticker_input}. Trend or volatility criteria not satisfied.")
 
@@ -625,92 +831,134 @@ with tab_predictions:
                 mime="text/csv"
             )
 
-        # Deep Dive Expander per Stock with Candlesticks & Technical Overlays
+        # Deep Dive per Stock with Candlesticks & Technical Overlays
         st.markdown("---")
         st.subheader("🔍 Detailed Technical Visualizer & Candlestick Charts")
         selected_stock_ticker = st.selectbox("Select Stock for Deep Technical Breakdown:", [s[0].ticker for s in approved_list])
 
         for sig, bt, df_ind in approved_list:
             if sig.ticker == selected_stock_ticker:
-                with st.expander(f"Detailed Analysis: {sig.ticker} ({sig.market_cap_category})", expanded=True):
-                    # Multi-row KPIs
-                    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-                    kpi1.metric("Conviction Score", f"{sig.conviction_score:.0f}/100")
-                    kpi2.metric("Target Return (3-6M)", f"+{sig.expected_return_pct:.1f}%")
-                    kpi3.metric("RSI (14)", f"{sig.rsi_14}")
-                    kpi4.metric("ADX (14)", f"{sig.adx_14}")
-                    kpi5.metric("Supertrend", sig.supertrend_direction)
+                st.markdown(f"""
+                <div class="quant-card" style="margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 22px; font-weight: 800; color: #FFFFFF; margin-right: 8px;">{sig.ticker}</span>
+                            <span class="bench-badge-blue">{sig.market_cap_category}</span>
+                            <p style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Structural Justification: <strong style="color: #F8FAFC;">{sig.technical_justification}</strong></p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 11px; color: #94A3B8; text-transform: uppercase; display: block;">Comfortable Entry / Target</span>
+                            <span style="font-size: 18px; font-weight: 800; font-family: monospace; color: #60A5FA;">₹{sig.comfortable_entry_price:,.2f}</span>
+                            <span style="font-size: 14px; font-weight: 700; color: #10B981; margin-left: 6px;">→ ₹{sig.target_price:,.2f} (+{sig.expected_return_pct:.1f}%)</span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                    st.markdown(f"**Structural Justification:** `{sig.technical_justification}`")
+                # 7 Technical Factor Badges matching React Preview
+                st.markdown(f"""
+                <div class="tech-pill-container">
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">RSI (14)</span>
+                        <span class="tech-pill-val" style="color: #38BDF8;">{sig.rsi_14}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">MACD Hist</span>
+                        <span class="tech-pill-val" style="color: {'#10B981' if sig.macd_hist >= 0 else '#EF4444'};">{sig.macd_hist:+.2f}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">50 EMA</span>
+                        <span class="tech-pill-val" style="color: #F59E0B;">₹{sig.ema_50:,.1f}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">200 EMA</span>
+                        <span class="tech-pill-val" style="color: #8B5CF6;">₹{sig.ema_200:,.1f}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">Supertrend</span>
+                        <span class="tech-pill-val" style="color: #10B981;">{sig.supertrend_direction}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">ADX (14)</span>
+                        <span class="tech-pill-val" style="color: #60A5FA;">{sig.adx_14}</span>
+                    </div>
+                    <div class="tech-pill">
+                        <span class="tech-pill-label">ATR Volatility</span>
+                        <span class="tech-pill-val" style="color: #CBD5E1;">₹{sig.atr_14:.1f}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                    # Candlestick chart + Supertrend + EMA + RSI/MACD subplots
-                    df_plot = df_ind.iloc[-120:].copy()  # Last ~6 months
+                # Candlestick chart + Supertrend + EMA + RSI/MACD subplots
+                df_plot = df_ind.iloc[-120:].copy()  # Last ~6 months
 
-                    fig = make_subplots(
-                        rows=3, cols=1,
-                        shared_xaxes=True,
-                        vertical_spacing=0.03,
-                        row_heights=[0.6, 0.2, 0.2]
-                    )
+                fig = make_subplots(
+                    rows=3, cols=1,
+                    shared_xaxes=True,
+                    vertical_spacing=0.03,
+                    row_heights=[0.6, 0.2, 0.2]
+                )
 
-                    # Candlestick
-                    fig.add_trace(
-                        go.Candlestick(
-                            x=df_plot.index,
-                            open=df_plot['open'],
-                            high=df_plot['high'],
-                            low=df_plot['low'],
-                            close=df_plot['close'],
-                            name="OHLC"
-                        ),
-                        row=1, col=1
-                    )
-                    # 50 EMA & 200 EMA
-                    fig.add_trace(
-                        go.Scatter(x=df_plot.index, y=df_plot['ema_50'], name="50 EMA", line=dict(color="#F59E0B", width=1.5)),
-                        row=1, col=1
-                    )
-                    fig.add_trace(
-                        go.Scatter(x=df_plot.index, y=df_plot['ema_200'], name="200 EMA", line=dict(color="#8B5CF6", width=2)),
-                        row=1, col=1
-                    )
-                    # Supertrend
-                    fig.add_trace(
-                        go.Scatter(x=df_plot.index, y=df_plot['supertrend'], name="Supertrend (10, 3)", line=dict(color="#10B981", width=1.5, dash="dot")),
-                        row=1, col=1
-                    )
+                # Candlestick
+                fig.add_trace(
+                    go.Candlestick(
+                        x=df_plot.index,
+                        open=df_plot['open'],
+                        high=df_plot['high'],
+                        low=df_plot['low'],
+                        close=df_plot['close'],
+                        name="OHLC"
+                    ),
+                    row=1, col=1
+                )
+                # 50 EMA & 200 EMA
+                fig.add_trace(
+                    go.Scatter(x=df_plot.index, y=df_plot['ema_50'], name="50 EMA", line=dict(color="#F59E0B", width=1.5)),
+                    row=1, col=1
+                )
+                fig.add_trace(
+                    go.Scatter(x=df_plot.index, y=df_plot['ema_200'], name="200 EMA", line=dict(color="#8B5CF6", width=2)),
+                    row=1, col=1
+                )
+                # Supertrend
+                fig.add_trace(
+                    go.Scatter(x=df_plot.index, y=df_plot['supertrend'], name="Supertrend (10, 3)", line=dict(color="#10B981", width=1.5, dash="dot")),
+                    row=1, col=1
+                )
 
-                    # RSI
-                    fig.add_trace(
-                        go.Scatter(x=df_plot.index, y=df_plot['rsi_14'], name="RSI (14)", line=dict(color="#38BDF8", width=1.5)),
-                        row=2, col=1
-                    )
-                    fig.add_hline(y=70, line_dash="dash", line_color="#EF4444", row=2, col=1)
-                    fig.add_hline(y=30, line_dash="dash", line_color="#10B981", row=2, col=1)
+                # RSI
+                fig.add_trace(
+                    go.Scatter(x=df_plot.index, y=df_plot['rsi_14'], name="RSI (14)", line=dict(color="#38BDF8", width=1.5)),
+                    row=2, col=1
+                )
+                fig.add_hline(y=70, line_dash="dash", line_color="#EF4444", row=2, col=1)
+                fig.add_hline(y=30, line_dash="dash", line_color="#10B981", row=2, col=1)
 
-                    # MACD
-                    fig.add_trace(
-                        go.Bar(x=df_plot.index, y=df_plot['macd_hist'], name="MACD Hist", marker_color=np.where(df_plot['macd_hist'] > 0, '#10B981', '#EF4444')),
-                        row=3, col=1
-                    )
-                    fig.add_trace(
-                        go.Scatter(x=df_plot.index, y=df_plot['macd'], name="MACD Line", line=dict(color="#EC4899", width=1.2)),
-                        row=3, col=1
-                    )
-                    fig.add_trace(
-                        go.Scatter(x=df_plot.index, y=df_plot['macd_signal'], name="Signal Line", line=dict(color="#F97316", width=1.2)),
-                        row=3, col=1
-                    )
+                # MACD
+                fig.add_trace(
+                    go.Bar(x=df_plot.index, y=df_plot['macd_hist'], name="MACD Hist", marker_color=np.where(df_plot['macd_hist'] > 0, '#10B981', '#EF4444')),
+                    row=3, col=1
+                )
+                fig.add_trace(
+                    go.Scatter(x=df_plot.index, y=df_plot['macd'], name="MACD Line", line=dict(color="#EC4899", width=1.2)),
+                    row=3, col=1
+                )
+                fig.add_trace(
+                    go.Scatter(x=df_plot.index, y=df_plot['macd_signal'], name="Signal Line", line=dict(color="#F97316", width=1.2)),
+                    row=3, col=1
+                )
 
-                    fig.update_layout(
-                        height=550,
-                        template="plotly_dark",
-                        margin=dict(l=20, r=20, t=30, b=20),
-                        showlegend=True,
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        xaxis_rangeslider_visible=False
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                fig.update_layout(
+                    height=550,
+                    template="plotly_dark",
+                    plot_bgcolor="#0E0E11",
+                    paper_bgcolor="#0E0E11",
+                    margin=dict(l=20, r=20, t=30, b=20),
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    xaxis_rangeslider_visible=False
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
     else:
         st.warning("No predictions match the current thresholds. Try adjusting the Min Conviction Score or click 'Run Daily Quantitative Scan'.")
