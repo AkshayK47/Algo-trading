@@ -40,6 +40,7 @@ class QuantitativeSignal:
     atr_14: float
     bollinger_pct_b: float
     is_hybrid_breakout: bool
+    stop_loss: float = 0.0
     backtest_win_rate: float = 0.0
     backtest_mdd: float = 0.0
     is_approved: bool = False
@@ -398,6 +399,9 @@ class SeniorTraderAnalysisEngine:
         expected_return_pct = max(14.0, min(38.0, expected_return_pct))
         target_price = round(comfortable_entry * (1.0 + (expected_return_pct / 100.0)), 2)
 
+        # Institutional Stop Loss: 1.5x ATR trailing buffer or max 8% risk anchor
+        stop_loss = round(max(comfortable_entry * 0.92, comfortable_entry - (1.5 * atr)), 2)
+
         primary_justification = " | ".join(justifications[:3]) if justifications else "Multi-factor Quantitative Confluence"
 
         return QuantitativeSignal(
@@ -419,5 +423,6 @@ class SeniorTraderAnalysisEngine:
             adx_14=round(adx, 1),
             atr_14=round(atr, 2),
             bollinger_pct_b=round(pct_b, 2),
-            is_hybrid_breakout=is_hybrid
+            is_hybrid_breakout=is_hybrid,
+            stop_loss=stop_loss
         )

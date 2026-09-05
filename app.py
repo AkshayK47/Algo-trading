@@ -336,7 +336,10 @@ with tab_predictions:
                 sig_quick.backtest_mdd = bt_quick.max_drawdown
                 sig_quick.is_approved = bt_quick.passes_filter
 
-                risk_pct = max(0.5, ((sig_quick.comfortable_entry_price - sig_quick.stop_loss) / sig_quick.comfortable_entry_price) * 100)
+                sl_val = getattr(sig_quick, 'stop_loss', None)
+                if not sl_val or sl_val <= 0:
+                    sl_val = round(max(sig_quick.comfortable_entry_price * 0.92, sig_quick.comfortable_entry_price - (1.5 * getattr(sig_quick, 'atr_14', sig_quick.comfortable_entry_price * 0.03))), 2)
+                risk_pct = max(0.5, ((sig_quick.comfortable_entry_price - sl_val) / sig_quick.comfortable_entry_price) * 100)
                 reward_pct = sig_quick.expected_return_pct
                 rr_ratio = reward_pct / risk_pct
 
@@ -353,7 +356,7 @@ with tab_predictions:
 
                 qc1, qc2, qc3, qc4, qc5 = st.columns(5)
                 qc1.metric("Comfortable Entry", f"₹{sig_quick.comfortable_entry_price:,.2f}")
-                qc2.metric("Stop Loss", f"₹{sig_quick.stop_loss:,.2f}", f"-{risk_pct:.1f}% Risk")
+                qc2.metric("Stop Loss", f"₹{sl_val:,.2f}", f"-{risk_pct:.1f}% Risk")
                 qc3.metric("Target (3-6M)", f"₹{sig_quick.target_price:,.2f}", f"+{reward_pct:.1f}% Gain")
                 qc4.metric("Risk : Reward", f"1 : {rr_ratio:.2f}", "Favorable Asymmetry")
                 qc5.metric("Sanity Verdict", "APPROVED" if bt_quick.passes_filter else "REJECTED", delta_color="normal" if bt_quick.passes_filter else "inverse")
@@ -561,14 +564,17 @@ with tab_predictions:
         # Prepare Display DataFrame with explicit Stop Loss & Risk:Reward ratio
         table_rows = []
         for sig, bt, _ in approved_list:
-            risk_pct = max(0.5, ((sig.comfortable_entry_price - sig.stop_loss) / sig.comfortable_entry_price) * 100)
+            sl_val = getattr(sig, 'stop_loss', None)
+            if not sl_val or sl_val <= 0:
+                sl_val = round(max(sig.comfortable_entry_price * 0.92, sig.comfortable_entry_price - (1.5 * getattr(sig, 'atr_14', sig.comfortable_entry_price * 0.03))), 2)
+            risk_pct = max(0.5, ((sig.comfortable_entry_price - sl_val) / sig.comfortable_entry_price) * 100)
             rr = sig.expected_return_pct / risk_pct
             table_rows.append({
                 "Ticker": sig.ticker,
                 "Category": sig.market_cap_category,
                 "Close Price (₹)": f"₹{sig.close_price:,.2f}",
                 "Comfortable Entry (₹)": f"₹{sig.comfortable_entry_price:,.2f}",
-                "Stop Loss (₹)": f"₹{sig.stop_loss:,.2f}",
+                "Stop Loss (₹)": f"₹{sl_val:,.2f}",
                 "Target (₹)": f"₹{sig.target_price:,.2f}",
                 "Risk : Reward": f"1 : {rr:.2f}",
                 "Expected Return (%)": f"+{sig.expected_return_pct:.1f}%",
