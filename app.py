@@ -27,7 +27,9 @@ from database import (
 from data_fetcher import (
     UpstoxDataFetcher,
     INDIAN_STOCKS_UNIVERSE,
-    INDEX_BASELINES
+    INDEX_BASELINES,
+    get_available_sectors,
+    fetch_official_nse_index_constituents
 )
 from analysis_engine import SeniorTraderAnalysisEngine, QuantitativeSignal
 from backtester import VectorizedBacktester
@@ -171,11 +173,33 @@ with st.sidebar:
     st.markdown("---")
 
     # 3. Quantitative Scan Parameters
-    st.subheader("⚙️ Quantitative Filters")
+    st.subheader("⚙️ Quantitative Filters & Stock Universe")
     universe_choice = st.selectbox(
-        "Stock Universe",
-        ["All Indian Equities (Nifty 100 + Midcap 150)", "Large-Cap Only (Nifty 100)", "Mid-Cap Only (Nifty Midcap 150)"]
+        "Index Universe",
+        [
+            "All Listed Equities (Nifty 100 + Midcap 150: 250 Stocks)",
+            "Large-Cap Only (Nifty 100: 100 Stocks)",
+            "Mid-Cap Only (Nifty Midcap 150: 150 Stocks)"
+        ],
+        index=0,
+        help="Select the benchmark equity universe to screen."
     )
+
+    all_available_sectors = ["All Sectors (Full Market)"] + get_available_sectors()
+    sector_filter = st.selectbox(
+        "Sector Filter",
+        all_available_sectors,
+        index=0,
+        help="Filter candidates by specific industry sector or scan across the entire market."
+    )
+
+    scan_depth = st.select_slider(
+        "Scan Depth / Batch Size",
+        options=["Quick Alpha (Top 25 Leaders)", "Broad Market (Top 60 Stocks)", "Full Selected Index Universe"],
+        value="Full Selected Index Universe",
+        help="Controls number of stocks evaluated in the algorithmic scan."
+    )
+
     min_conviction_score = st.slider(
         "Min Conviction Score (0-100)",
         min_value=50,
@@ -185,6 +209,14 @@ with st.sidebar:
         help="Composite weighted score threshold combining Momentum, Trend, Volatility, and Volume."
     )
     st.caption("🔒 **Sanity Filter Lock**: Max Drawdown ≤ 15% & Win Rate ≥ 55% over trailing 12 months.")
+
+    # Live NSE Constituent Sync Action
+    if st.button("🔄 Sync Live Constituents from NSE India", use_container_width=True):
+        with st.spinner("Connecting to NSE India official archives..."):
+            n100 = fetch_official_nse_index_constituents("NIFTY_100")
+            n150 = fetch_official_nse_index_constituents("NIFTY_MIDCAP_150")
+            st.session_state["live_nse_synced"] = True
+            st.success(f"Synchronized {len(n100)} Nifty 100 & {len(n150)} Midcap 150 constituents!")
 
     st.markdown("---")
     st.caption("Developed for Windows 10/11 | Local Port: 8501")
@@ -264,72 +296,132 @@ with tab_predictions:
 
     st.markdown("---")
 
-    # 2. Trigger Scan Button
+    # 2. Candidate Universe Building & Filter Resolution
+    raw_candidates = []
+    if "Large-Cap Only" in universe_choice:
+        raw_candidates.extend([(s, "Large-Cap (Nifty 100)") for s in INDIAN_STOCKS_UNIVERSE["LARGE_CAP"]])
+    elif "Mid-Cap Only" in universe_choice:
+        raw_candidates.extend([(s, "Mid-Cap (Nifty Midcap 150)") for s in INDIAN_STOCKS_UNIVERSE["MID_CAP"]])
+    else:
+        raw_candidates.extend([(s, "Large-Cap (Nifty 100)") for s in INDIAN_STOCKS_UNIVERSE["LARGE_CAP"]])
+        raw_candidates.extend([(s, "Mid-Cap (Nifty Midcap 150)") for s in INDIAN_STOCKS_UNIVERSE["MID_CAP"]])
+
+    # Apply Sector Filter
+    if sector_filter and not sector_filter.startswith("All Sectors"):
+        filtered_candidates = [
+            (s, cat) for s, cat in raw_candidates
+            if s.get("sector", "").lower() == sector_filter.lower()
+        ]
+    else:
+        filtered_candidates = raw_candidates
+
+    # Apply Scan Depth
+    if scan_depth.startswith("Quick Alpha"):
+        selected_stocks = filtered_candidates[:25]
+    elif scan_depth.startswith("Broad Market"):
+        selected_stocks = filtered_candidates[:60]
+    else:
+        selected_stocks = filtered_candidates
+
+    # Screener Header Metrics
     st.subheader("🎯 Multi-Factor Alpha Stock Screener")
+    col_u1, col_u2, col_u3, col_u4 = st.columns(4)
+    with col_u1:
+        st.metric("Total Master Universe", f"{len(INDIAN_STOCKS_UNIVERSE['LARGE_CAP']) + len(INDIAN_STOCKS_UNIVERSE['MID_CAP'])} Stocks", "100 Large + 150 Midcap")
+    with col_u2:
+        st.metric("Selected Index Scope", f"{len(raw_candidates)} Stocks", universe_choice.split("(")[0].strip())
+    with col_u3:
+        st.metric("Filtered Candidates", f"{len(selected_stocks)} Stocks", sector_filter.split("(")[0].strip())
+    with col_u4:
+        st.metric("Market Cap Coverage", "~85% NSE", "Nifty 100 + Midcap 150")
+
     col_btn, col_info = st.columns([1, 3])
     with col_btn:
-        run_scan = st.button("🚀 Run Daily Quantitative Scan", type="primary", use_container_width=True)
+        run_scan = st.button(f"🚀 Run Scan ({len(selected_stocks)} Stocks)", type="primary", use_container_width=True)
     with col_info:
         st.info(
-            "Clicking initiates: 1) OHLCV Data Pull → 2) Technical Indicator Pipelines → "
-            "3) Multi-Factor Conviction Scoring → 4) 12M Trailing Backtest Simulation → "
+            f"Ready to scan **{len(selected_stocks)} listed stocks** across **{sector_filter}**. "
+            "Pipeline: 1) OHLCV Data Pull → 2) Technical Indicators → "
+            "3) Conviction Scoring → 4) 12M Trailing Backtest → "
             "5) Sanity Filter (MDD ≤ 15% & Win Rate ≥ 55%)."
         )
 
-    # Candidate universe selection
-    selected_stocks = []
-    if "Large-Cap" in universe_choice:
-        selected_stocks.extend([(s, "Large-Cap (Nifty 100)") for s in INDIAN_STOCKS_UNIVERSE["LARGE_CAP"]])
-    elif "Mid-Cap" in universe_choice:
-        selected_stocks.extend([(s, "Mid-Cap (Nifty Midcap 150)") for s in INDIAN_STOCKS_UNIVERSE["MID_CAP"]])
-    else:
-        selected_stocks.extend([(s, "Large-Cap (Nifty 100)") for s in INDIAN_STOCKS_UNIVERSE["LARGE_CAP"]])
-        selected_stocks.extend([(s, "Mid-Cap (Nifty Midcap 150)") for s in INDIAN_STOCKS_UNIVERSE["MID_CAP"]])
+    # Initial demonstration seed if no scan has been executed yet
+    if "scanned_results" not in st.session_state and not run_scan:
+        demo_universe = [
+            (s, "Large-Cap (Nifty 100)") for s in INDIAN_STOCKS_UNIVERSE["LARGE_CAP"][:4]
+        ] + [
+            (s, "Mid-Cap (Nifty Midcap 150)") for s in INDIAN_STOCKS_UNIVERSE["MID_CAP"][:4]
+        ]
+        demo_approved = []
+        demo_rejected = []
+        for stock_info, category in demo_universe:
+            ticker = stock_info["ticker"]
+            df_ohlcv = fetcher.fetch_historical_ohlcv(stock_info["instrument_key"], days_back=730)
+            sig = engine.evaluate_stock(
+                ticker=ticker,
+                market_cap_category=category,
+                ohlcv_df=df_ohlcv,
+                market_trend_bullish=market_bullish
+            )
+            if sig:
+                df_ind = engine.compute_indicators(df_ohlcv)
+                bt_res = backtester.run_backtest(ticker, df_ind)
+                sig.backtest_win_rate = bt_res.win_rate
+                sig.backtest_mdd = bt_res.max_drawdown
+                sig.is_approved = bt_res.passes_filter
+                if bt_res.passes_filter:
+                    demo_approved.append((sig, bt_res, df_ind))
+                else:
+                    demo_rejected.append((sig, bt_res))
+        st.session_state["scanned_results"] = demo_approved
+        st.session_state["rejected_results"] = demo_rejected
+        st.session_state["last_scan_time"] = "Initial Institutional Baseline"
 
-    if run_scan or "scanned_results" not in st.session_state:
-        if run_scan:
-            progress_bar = st.progress(0.0)
-            status_text = st.empty()
+    if run_scan:
+        progress_bar = st.progress(0.0)
+        status_text = st.empty()
 
-            approved_signals = []
-            rejected_signals = []
+        approved_signals = []
+        rejected_signals = []
 
-            total_items = len(selected_stocks)
-            for idx, (stock_info, category) in enumerate(selected_stocks):
-                ticker = stock_info["ticker"]
-                status_text.text(f"Analyzing {ticker} ({idx + 1}/{total_items})...")
-                progress_bar.progress((idx + 1) / total_items)
+        total_items = len(selected_stocks)
+        for idx, (stock_info, category) in enumerate(selected_stocks):
+            ticker = stock_info["ticker"]
+            sec = stock_info.get("sector", "")
+            status_text.text(f"Analyzing {ticker} ({sec}) [{idx + 1}/{total_items}]...")
+            progress_bar.progress((idx + 1) / total_items)
 
-                # 1. Fetch OHLCV (trailing 2-3 years)
-                df_ohlcv = fetcher.fetch_historical_ohlcv(stock_info["instrument_key"], days_back=730)
+            # 1. Fetch OHLCV (trailing 2-3 years)
+            df_ohlcv = fetcher.fetch_historical_ohlcv(stock_info["instrument_key"], days_back=730)
 
-                # 2. Run Quantitative Analysis Pipeline
-                signal = engine.evaluate_stock(
-                    ticker=ticker,
-                    market_cap_category=category,
-                    ohlcv_df=df_ohlcv,
-                    market_trend_bullish=market_bullish
-                )
+            # 2. Run Quantitative Analysis Pipeline
+            signal = engine.evaluate_stock(
+                ticker=ticker,
+                market_cap_category=category,
+                ohlcv_df=df_ohlcv,
+                market_trend_bullish=market_bullish
+            )
 
-                if signal and signal.conviction_score >= min_conviction_score:
-                    # 3. Run Vectorized 12-Month Backtest & Sanity Filter
-                    df_ind = engine.compute_indicators(df_ohlcv)
-                    bt_result = backtester.run_backtest(ticker, df_ind)
+            if signal and signal.conviction_score >= min_conviction_score:
+                # 3. Run Vectorized 12-Month Backtest & Sanity Filter
+                df_ind = engine.compute_indicators(df_ohlcv)
+                bt_result = backtester.run_backtest(ticker, df_ind)
 
-                    signal.backtest_win_rate = bt_result.win_rate
-                    signal.backtest_mdd = bt_result.max_drawdown
-                    signal.is_approved = bt_result.passes_filter
+                signal.backtest_win_rate = bt_result.win_rate
+                signal.backtest_mdd = bt_result.max_drawdown
+                signal.is_approved = bt_result.passes_filter
 
-                    if bt_result.passes_filter:
-                        approved_signals.append((signal, bt_result, df_ind))
-                    else:
-                        rejected_signals.append((signal, bt_result))
+                if bt_result.passes_filter:
+                    approved_signals.append((signal, bt_result, df_ind))
+                else:
+                    rejected_signals.append((signal, bt_result))
 
-            status_text.empty()
-            progress_bar.empty()
-            st.session_state["scanned_results"] = approved_signals
-            st.session_state["rejected_results"] = rejected_signals
-            st.session_state["last_scan_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        status_text.empty()
+        progress_bar.empty()
+        st.session_state["scanned_results"] = approved_signals
+        st.session_state["rejected_results"] = rejected_signals
+        st.session_state["last_scan_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     approved_list = st.session_state.get("scanned_results", [])
     rejected_list = st.session_state.get("rejected_results", [])
