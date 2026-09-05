@@ -1,0 +1,6 @@
+{
+  "name": "NSE Alpha Quant - Indian Stock Market Advisory & Tracker",
+  "description": "Automated algorithmic stock advisory, backtesting engine, and real-time portfolio tracker for NSE/BSE Large-Cap and Mid-Cap stocks with Upstox API integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
