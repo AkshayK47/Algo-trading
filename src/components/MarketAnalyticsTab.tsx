@@ -21,6 +21,9 @@ import {
 import { MarketBaseline, QuantitativeSignal } from '../types';
 import { UniverseExplorerModal } from './UniverseExplorerModal';
 import { ALL_INDIAN_STOCKS_UNIVERSE, evaluateAnyStock, PRIMARY_SECTORS } from '../stockUniverse';
+import { TradingViewStrategyChart } from './TradingViewStrategyChart';
+import { TradingGraphModal } from './TradingGraphModal';
+import { getMarketSessionInfo } from '../utils/marketSession';
 
 interface MarketAnalyticsTabProps {
   baselines: Record<string, MarketBaseline>;
@@ -48,11 +51,14 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
   onAddSignal,
 }) => {
   const [selectedStockId, setSelectedStockId] = useState<string>(signals[0]?.id || '1');
+  const [modalStock, setModalStock] = useState<QuantitativeSignal | null>(null);
   const [showRejections, setShowRejections] = useState<boolean>(false);
   const [isExplorerOpen, setIsExplorerOpen] = useState<boolean>(false);
   const [customTickerInput, setCustomTickerInput] = useState<string>('');
   const [quickScanFeedback, setQuickScanFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isQuickScanning, setIsQuickScanning] = useState<boolean>(false);
+
+  const sessionInfo = getMarketSessionInfo();
 
   const selectedStock = signals.find((s) => s.id === selectedStockId) || signals[0];
   const n50 = baselines.NIFTY_50;
@@ -66,7 +72,7 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
     setQuickScanFeedback(null);
 
     setTimeout(() => {
-      const result = evaluateAnyStock(sym);
+      const result = evaluateAnyStock(sym, undefined, sessionInfo.latestTradingDate);
       setIsQuickScanning(false);
 
       if (result.passesFilter) {
@@ -90,6 +96,47 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* 0. Market Calendar & Non-Trading Day Deterministic Status Banner */}
+      <div className={`p-4 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg ${
+        sessionInfo.isWeekend 
+          ? 'bg-amber-950/25 border-amber-500/30 text-amber-200' 
+          : 'bg-[#121217] border-[#22222E] text-zinc-300'
+      }`}>
+        <div className="flex items-center space-x-3">
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+            sessionInfo.isWeekend 
+              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+          }`}>
+            <Activity className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-black/40 border border-white/10 font-mono">
+                {sessionInfo.statusBadge.text}
+              </span>
+              <span className="text-xs text-white font-medium">
+                {sessionInfo.sessionLabel}
+              </span>
+            </div>
+            <p className="text-xs text-zinc-300 mt-0.5">
+              {sessionInfo.statusBadge.subtext}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 text-xs self-end md:self-center">
+          <div className="bg-black/30 border border-white/10 px-3 py-1 rounded text-right">
+            <span className="text-[10px] text-zinc-400 block uppercase">Session Date Anchor</span>
+            <span className="font-mono font-bold text-white">{sessionInfo.latestTradingDate}</span>
+          </div>
+          <span className="px-2.5 py-1 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-medium text-[11px] flex items-center space-x-1">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Deterministic Scan: Stable</span>
+          </span>
+        </div>
+      </div>
+
       {/* 1. Market Directional Trend Baselines */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -408,15 +455,28 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
                       {sig.technicalJustification}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedStockId(sig.id);
-                        }}
-                        className="px-2 py-1 bg-[#16161A] hover:bg-[#202026] text-zinc-300 border border-[#23232A] rounded text-[11px] font-medium transition cursor-pointer"
-                      >
-                        Inspect
-                      </button>
+                      <div className="flex items-center justify-center space-x-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedStockId(sig.id);
+                          }}
+                          className="px-2 py-1 bg-[#16161A] hover:bg-[#202026] text-zinc-300 border border-[#23232A] rounded text-[11px] font-medium transition cursor-pointer"
+                        >
+                          Inspect
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalStock(sig);
+                          }}
+                          className="px-2 py-1 bg-[#4A90E2]/15 hover:bg-[#4A90E2]/25 text-[#60A5FA] border border-[#4A90E2]/30 rounded text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
+                          title="Open Trading Graph"
+                        >
+                          <BarChart3 className="w-3 h-3" />
+                          <span>Graph</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -445,7 +505,7 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
               </p>
             </div>
 
-            {/* Quick Metrics Bar */}
+            {/* Quick Metrics & Graph Actions */}
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <span className="text-[11px] text-zinc-400 uppercase block">Comfortable Entry</span>
@@ -455,6 +515,14 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
                 <span className="text-[11px] text-zinc-400 uppercase block">Expected Target</span>
                 <span className="text-base font-bold font-mono text-emerald-400">₹{selectedStock.targetPrice.toLocaleString('en-IN')} (+{selectedStock.expectedReturnPct}%)</span>
               </div>
+              <button
+                onClick={() => setModalStock(selectedStock)}
+                className="px-3 py-1.5 bg-[#4A90E2]/15 hover:bg-[#4A90E2]/25 text-[#60A5FA] border border-[#4A90E2]/30 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer ml-2"
+                title="Open Expanded Strategy Graph"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Fullscreen Graph</span>
+              </button>
             </div>
           </div>
 
@@ -490,104 +558,27 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Interactive Candlestick Chart with Overlays */}
-          <div className="mt-4 bg-[#0A0A0B] p-4 rounded-lg border border-[#1E1E24]">
-            <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
-              <div className="flex items-center space-x-4">
-                <span className="flex items-center space-x-1"><span className="w-2.5 h-0.5 bg-amber-400 inline-block"></span> <span>50 EMA</span></span>
-                <span className="flex items-center space-x-1"><span className="w-2.5 h-0.5 bg-purple-400 inline-block"></span> <span>200 EMA</span></span>
-                <span className="flex items-center space-x-1"><span className="w-2.5 h-0.5 bg-emerald-400 inline-block"></span> <span>Supertrend (10, 3)</span></span>
-              </div>
-              <span className="text-[11px] font-mono text-zinc-500">Daily Timeframe (Trailing ~90 Sessions)</span>
-            </div>
-
-            {/* SVG Candlestick Render */}
-            <div className="w-full h-64 overflow-hidden relative">
-              <svg className="w-full h-full" viewBox="0 0 800 240" preserveAspectRatio="none">
-                {/* Background grid */}
-                <line x1="0" y1="60" x2="800" y2="60" stroke="#1E1E24" strokeDasharray="3,3" />
-                <line x1="0" y1="120" x2="800" y2="120" stroke="#1E1E24" strokeDasharray="3,3" />
-                <line x1="0" y1="180" x2="800" y2="180" stroke="#1E1E24" strokeDasharray="3,3" />
-
-                {/* Candlesticks */}
-                {selectedStock.history && selectedStock.history.length > 0 && (() => {
-                  const history = selectedStock.history.slice(-50);
-                  const minPrice = Math.min(...history.map(c => c.low)) * 0.98;
-                  const maxPrice = Math.max(...history.map(c => c.high)) * 1.02;
-                  const range = maxPrice - minPrice || 1;
-                  const stepX = 800 / history.length;
-
-                  return (
-                    <g>
-                      {/* Price candles */}
-                      {history.map((c, i) => {
-                        const x = i * stepX + stepX / 2;
-                        const isGreen = c.close >= c.open;
-                        const yHigh = 220 - ((c.high - minPrice) / range) * 200;
-                        const yLow = 220 - ((c.low - minPrice) / range) * 200;
-                        const yOpen = 220 - ((c.open - minPrice) / range) * 200;
-                        const yClose = 220 - ((c.close - minPrice) / range) * 200;
-                        const bodyY = Math.min(yOpen, yClose);
-                        const bodyHeight = Math.max(Math.abs(yOpen - yClose), 2);
-                        const color = isGreen ? '#10B981' : '#EF4444';
-
-                        return (
-                          <g key={i}>
-                            {/* Wick */}
-                            <line x1={x} y1={yHigh} x2={x} y2={yLow} stroke={color} strokeWidth="1" />
-                            {/* Candle Body */}
-                            <rect
-                              x={x - stepX * 0.35}
-                              y={bodyY}
-                              width={stepX * 0.7}
-                              height={bodyHeight}
-                              fill={color}
-                            />
-                          </g>
-                        );
-                      })}
-
-                      {/* 50 EMA Line */}
-                      <polyline
-                        fill="none"
-                        stroke="#F59E0B"
-                        strokeWidth="2"
-                        points={history.map((c, i) => {
-                          const x = i * stepX + stepX / 2;
-                          const y = 220 - (((c.ema50 || c.close * 0.96) - minPrice) / range) * 200;
-                          return `${x},${y}`;
-                        }).join(' ')}
-                      />
-
-                      {/* 200 EMA Line */}
-                      <polyline
-                        fill="none"
-                        stroke="#8B5CF6"
-                        strokeWidth="2"
-                        points={history.map((c, i) => {
-                          const x = i * stepX + stepX / 2;
-                          const y = 220 - (((c.ema200 || c.close * 0.91) - minPrice) / range) * 200;
-                          return `${x},${y}`;
-                        }).join(' ')}
-                      />
-
-                      {/* Supertrend Dots */}
-                      <polyline
-                        fill="none"
-                        stroke="#10B981"
-                        strokeWidth="2"
-                        strokeDasharray="4,4"
-                        points={history.map((c, i) => {
-                          const x = i * stepX + stepX / 2;
-                          const y = 220 - (((c.supertrend || c.low * 0.97) - minPrice) / range) * 200;
-                          return `${x},${y}`;
-                        }).join(' ')}
-                      />
-                    </g>
-                  );
-                })()}
-              </svg>
-            </div>
+          {/* High-Performance Lightweight TradingView Strategy Chart */}
+          <div className="mt-4">
+            <TradingViewStrategyChart
+              ticker={selectedStock.ticker}
+              companyName={selectedStock.companyName}
+              category={selectedStock.marketCapCategory}
+              closePrice={selectedStock.closePrice}
+              entryPrice={selectedStock.comfortableEntryPrice}
+              targetPrice={selectedStock.targetPrice}
+              stopLoss={selectedStock.stopLoss}
+              riskRewardRatio={selectedStock.riskRewardRatio}
+              expectedReturnPct={selectedStock.expectedReturnPct}
+              technicalJustification={selectedStock.technicalJustification}
+              rsi14={selectedStock.rsi14}
+              macdHist={selectedStock.macdHist}
+              candles={selectedStock.history}
+              strategyType={selectedStock.isHybridBreakout ? 'Hybrid Breakout' : 'Quantitative Trend'}
+              winRate={selectedStock.backtestWinRate}
+              maxDrawdown={selectedStock.backtestMdd}
+              height={400}
+            />
           </div>
         </div>
       )}
@@ -639,6 +630,14 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* Trading Graph Modal */}
+      {modalStock && (
+        <TradingGraphModal
+          stock={modalStock}
+          onClose={() => setModalStock(null)}
+        />
+      )}
     </div>
   );
 };

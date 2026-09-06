@@ -1,4 +1,5 @@
 import { MarketBaseline, QuantitativeSignal, SuggestionRecord } from './types';
+import { generateCandlesForStock } from './stockUniverse';
 
 export const INITIAL_BASELINES: Record<string, MarketBaseline> = {
   NIFTY_50: {
@@ -27,43 +28,9 @@ export const INITIAL_BASELINES: Record<string, MarketBaseline> = {
   },
 };
 
-// Generates 90 days of realistic daily candles for candlestick charting
-function generateCandles(basePrice: number, trend: number, count: number = 90) {
-  const candles = [];
-  let price = basePrice * 0.85;
-  const now = new Date();
-
-  for (let i = count; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    // Skip weekends
-    if (d.getDay() === 0 || d.getDay() === 6) continue;
-
-    const change = (Math.random() - 0.47 + trend * 0.05) * 0.02 * price;
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * 0.012 * price;
-    const low = Math.min(open, close) - Math.random() * 0.012 * price;
-    const volume = Math.floor(Math.random() * 800000 + 400000);
-
-    price = close;
-
-    candles.push({
-      date: d.toISOString().split('T')[0],
-      open: Math.round(open * 100) / 100,
-      high: Math.round(high * 100) / 100,
-      low: Math.round(low * 100) / 100,
-      close: Math.round(close * 100) / 100,
-      volume,
-      ema50: Math.round((close * 0.96) * 100) / 100,
-      ema200: Math.round((close * 0.91) * 100) / 100,
-      supertrend: Math.round((low * 0.97) * 100) / 100,
-      rsi: Math.round(52 + Math.random() * 14),
-      macd: Math.round((Math.random() * 12 + 2) * 10) / 10,
-      macdSignal: Math.round((Math.random() * 8 + 2) * 10) / 10,
-      macdHist: Math.round((Math.random() * 4 - 0.5) * 10) / 10,
-    });
-  }
-  return candles;
+// Generates deterministic realistic daily candles for candlestick charting
+function generateCandles(basePrice: number, seedNum: number = 42, count: number = 90) {
+  return generateCandlesForStock(basePrice, Math.round(seedNum * 1000), count);
 }
 
 export const INITIAL_SIGNALS: QuantitativeSignal[] = [

@@ -29,6 +29,7 @@ import {
   PRIMARY_SECTORS,
   stockMatchesSelectedSectors
 } from './stockUniverse';
+import { getMarketSessionInfo } from './utils/marketSession';
 import { 
   fetchSuggestions, 
   runStockScan, 
@@ -237,33 +238,35 @@ export default function App() {
         setScanStep('Processing results...');
         
         // Transform backend results to frontend format
-        const approved = result.approved.map((item: any) => ({
-          id: item.signal.ticker,
+        const approved: QuantitativeSignal[] = result.approved.map((item: any) => ({
+          id: item.signal.id || item.signal.ticker,
           ticker: item.signal.ticker,
-          companyName: item.signal.ticker,
-          marketCapCategory: 'Large-Cap (Nifty 100)',
+          companyName: item.signal.company_name || item.signal.ticker,
+          marketCapCategory: item.signal.market_cap_category || 'Large-Cap (Nifty 100)',
           closePrice: item.signal.close_price,
           comfortableEntryPrice: item.signal.comfortable_entry_price,
           expectedReturnPct: item.signal.expected_return_pct,
           targetPrice: item.signal.target_price,
           stopLoss: item.signal.stop_loss,
+          riskPct: item.signal.risk_pct,
+          riskRewardRatio: item.signal.risk_reward_ratio,
           convictionScore: item.signal.conviction_score,
           technicalJustification: item.signal.technical_justification,
           rsi14: item.signal.rsi_14,
-          macdVal: item.signal.macd_hist,
-          macdSignal: 0,
+          macdVal: item.signal.macd_val ?? item.signal.macd_hist,
+          macdSignal: item.signal.macd_signal ?? 0,
           macdHist: item.signal.macd_hist,
           ema50: item.signal.ema_50,
           ema200: item.signal.ema_200,
           supertrendDirection: item.signal.supertrend_direction,
           adx14: item.signal.adx_14,
           atr14: item.signal.atr_14,
-          bollingerPctB: 0.5,
+          bollingerPctB: item.signal.bollinger_pct_b ?? 0.5,
           isHybridBreakout: item.signal.is_hybrid_breakout,
           backtestWinRate: item.backtest.win_rate,
           backtestMdd: item.backtest.max_drawdown,
           isApproved: true,
-          history: []
+          history: item.signal.history || []
         }));
         
         const rejected = result.rejected.map((item: any) => ({
@@ -335,10 +338,11 @@ export default function App() {
 
       const approved: QuantitativeSignal[] = [];
       const rejected: any[] = [];
+      const sessionInfo = getMarketSessionInfo();
 
       const candidatesToScan = pool.slice(0, Math.min(pool.length, 45));
       candidatesToScan.forEach((stock) => {
-        const evalRes = evaluateAnyStock(stock.ticker);
+        const evalRes = evaluateAnyStock(stock.ticker, stock, sessionInfo.latestTradingDate);
         if (evalRes.passesFilter && evalRes.signal.convictionScore >= minConviction) {
           approved.push(evalRes.signal);
         } else if (!evalRes.passesFilter) {

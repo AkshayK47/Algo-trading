@@ -23,16 +23,21 @@ import {
   MEAN_REVERSION_PROFILE, 
   StrategyProfile 
 } from '../strategyData';
+import { TradingViewStrategyChart } from './TradingViewStrategyChart';
+import { evaluateAnyStock } from '../stockUniverse';
+import { getMarketSessionInfo } from '../utils/marketSession';
 
 interface HistoricalChartsTabProps {
   records: SuggestionRecord[];
 }
 
-type StrategyMode = 'hybrid_breakout' | 'mean_reversion' | 'compare';
+type StrategyMode = 'hybrid_breakout' | 'mean_reversion' | 'compare' | 'trading_graphs';
 
 export const HistoricalChartsTab: React.FC<HistoricalChartsTabProps> = ({ records }) => {
   const [strategyMode, setStrategyMode] = useState<StrategyMode>('hybrid_breakout');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [selectedGraphTicker, setSelectedGraphTicker] = useState<string>('TRENT');
+  const [graphStrategyType, setGraphStrategyType] = useState<'breakout' | 'mean_reversion'>('breakout');
 
   const breakoutProfile = HYBRID_BREAKOUT_PROFILE;
   const meanRevProfile = MEAN_REVERSION_PROFILE;
@@ -43,6 +48,20 @@ export const HistoricalChartsTab: React.FC<HistoricalChartsTabProps> = ({ record
 
   // Trading days (252 trading sessions per standard NSE year)
   const tradingDays = 252;
+
+  const sessionInfo = useMemo(() => getMarketSessionInfo(), []);
+
+  // Backtest Stock Presets for interactive graph viewing
+  const availableGraphTickers = useMemo(() => {
+    const defaultTickers = ['TRENT', 'POLYCAB', 'RELIANCE', 'HAL', 'DIXON', 'TITAN', 'BAJFINANCE', 'LT', 'TCS'];
+    const fromRecords = records.map(r => r.ticker).filter(t => !defaultTickers.includes(t));
+    return [...defaultTickers, ...fromRecords];
+  }, [records]);
+
+  const selectedStockData = useMemo(() => {
+    const evalRes = evaluateAnyStock(selectedGraphTicker, undefined, sessionInfo.latestTradingDate);
+    return evalRes.signal;
+  }, [selectedGraphTicker, sessionInfo]);
 
   // Merge database records with breakout picks if available
   const activePicks = useMemo(() => {
@@ -160,12 +179,50 @@ export const HistoricalChartsTab: React.FC<HistoricalChartsTabProps> = ({ record
             <span>Compare Both</span>
             <span className="text-[10px] bg-[#4A90E2]/30 text-blue-200 px-1 rounded font-mono">Overlay</span>
           </button>
+
+          <button
+            id="strategy-tab-trading-graphs"
+            onClick={() => setStrategyMode('trading_graphs')}
+            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              strategyMode === 'trading_graphs'
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
+            <span>Trading Graphs View</span>
+            <span className="text-[10px] bg-purple-500/30 text-purple-200 px-1.5 rounded font-mono font-bold">Interactive</span>
+          </button>
         </div>
       </div>
 
       {/* Active Strategy Context Summary Banner */}
       <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-4">
-        {strategyMode === 'compare' ? (
+        {strategyMode === 'trading_graphs' ? (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase">
+                  Trading Graphs View
+                </span>
+                <h3 className="text-sm font-bold text-white">Interactive TradingView Strategy Visualizer</h3>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Inspect real-time candlestick setups with strategy entry triggers, take-profit targets, protective stop loss levels, institutional volume, and RSI momentum oscillator.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2 text-xs shrink-0">
+              <div className="bg-[#16161A] border border-[#23232A] px-3 py-1.5 rounded">
+                <span className="text-[10px] text-zinc-400 block">Active Symbol</span>
+                <span className="font-bold text-white font-mono">{selectedGraphTicker}.NS</span>
+              </div>
+              <div className="bg-[#16161A] border border-[#23232A] px-3 py-1.5 rounded">
+                <span className="text-[10px] text-zinc-400 block">Session Date</span>
+                <span className="font-semibold text-emerald-400 font-mono text-[11px]">{sessionInfo.latestTradingDate}</span>
+              </div>
+            </div>
+          </div>
+        ) : strategyMode === 'compare' ? (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
@@ -218,8 +275,128 @@ export const HistoricalChartsTab: React.FC<HistoricalChartsTabProps> = ({ record
         )}
       </div>
 
-      {/* KPI Cards Strip */}
-      {strategyMode === 'compare' ? (
+      {/* KPI Cards & Charts Strip OR Trading Graphs Studio */}
+      {strategyMode === 'trading_graphs' ? (
+        <div className="space-y-4">
+          {/* Stock Selector and Strategy Mode Switcher */}
+          <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-semibold text-zinc-400 block mb-2">Select Strategy Candidate to Inspect:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableGraphTickers.map((ticker) => {
+                    const isSelected = selectedGraphTicker === ticker;
+                    return (
+                      <button
+                        key={ticker}
+                        onClick={() => setSelectedGraphTicker(ticker)}
+                        className={`px-3 py-1 rounded text-xs font-bold font-mono transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-purple-500 text-white shadow-sm'
+                            : 'bg-[#16161A] text-zinc-300 border border-[#23232A] hover:bg-[#1E1E24] hover:text-white'
+                        }`}
+                      >
+                        {ticker}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 shrink-0">
+                <span className="text-xs text-zinc-400 font-medium">Strategy Ruleset:</span>
+                <div className="flex bg-[#16161A] border border-[#23232A] rounded-lg p-1 space-x-1">
+                  <button
+                    onClick={() => setGraphStrategyType('breakout')}
+                    className={`flex items-center space-x-1.5 px-3 py-1 rounded text-xs font-semibold transition ${
+                      graphStrategyType === 'breakout'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Hybrid Breakout</span>
+                  </button>
+                  <button
+                    onClick={() => setGraphStrategyType('mean_reversion')}
+                    className={`flex items-center space-x-1.5 px-3 py-1 rounded text-xs font-semibold transition ${
+                      graphStrategyType === 'mean_reversion'
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Mean Reversion</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Selected Stock KPI Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-3">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Close Price</span>
+              <div className="text-lg font-bold font-mono text-white mt-1">₹{selectedStockData.closePrice.toFixed(2)}</div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">NSE LTP</div>
+            </div>
+
+            <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-3">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Strategy Entry</span>
+              <div className="text-lg font-bold font-mono text-cyan-400 mt-1">₹{selectedStockData.comfortableEntryPrice.toFixed(2)}</div>
+              <div className="text-[10px] text-cyan-400/80 mt-0.5">Comfortable Trigger</div>
+            </div>
+
+            <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-3">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Profit Target</span>
+              <div className="text-lg font-bold font-mono text-emerald-400 mt-1">₹{selectedStockData.targetPrice.toFixed(2)}</div>
+              <div className="text-[10px] text-emerald-400/80 mt-0.5">+{selectedStockData.expectedReturnPct.toFixed(1)}% Return</div>
+            </div>
+
+            <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-3">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Protective Stop</span>
+              <div className="text-lg font-bold font-mono text-rose-400 mt-1">₹{selectedStockData.stopLoss.toFixed(2)}</div>
+              <div className="text-[10px] text-rose-400/80 mt-0.5">Stop Loss Bound</div>
+            </div>
+
+            <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-3">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Risk : Reward</span>
+              <div className="text-lg font-bold font-mono text-[#60A5FA] mt-1">{selectedStockData.riskRewardRatio.toFixed(1)} : 1</div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Asymmetric Edge</div>
+            </div>
+
+            <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-3">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">12M Win Rate</span>
+              <div className="text-lg font-bold font-mono text-emerald-400 mt-1">{selectedStockData.backtestWinRate}%</div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Max DD: {selectedStockData.backtestMdd}%</div>
+            </div>
+          </div>
+
+          {/* Interactive Lightweight TradingView Strategy Chart */}
+          <TradingViewStrategyChart
+            ticker={selectedStockData.ticker}
+            companyName={selectedStockData.companyName}
+            category={selectedStockData.marketCapCategory}
+            closePrice={selectedStockData.closePrice}
+            entryPrice={selectedStockData.comfortableEntryPrice}
+            targetPrice={selectedStockData.targetPrice}
+            stopLoss={selectedStockData.stopLoss}
+            riskRewardRatio={selectedStockData.riskRewardRatio}
+            expectedReturnPct={selectedStockData.expectedReturnPct}
+            technicalJustification={selectedStockData.technicalJustification}
+            rsi14={selectedStockData.rsi14}
+            macdHist={selectedStockData.macdHist}
+            candles={selectedStockData.history}
+            strategyType={graphStrategyType === 'breakout' ? 'Hybrid Breakout' : 'Mean Reversion'}
+            winRate={selectedStockData.backtestWinRate}
+            maxDrawdown={selectedStockData.backtestMdd}
+            height={460}
+          />
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards Strip */}
+          {strategyMode === 'compare' ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* Card 1: Cumulative Return Comparison */}
           <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-4">
@@ -826,6 +1003,7 @@ export const HistoricalChartsTab: React.FC<HistoricalChartsTabProps> = ({ record
                 <th className="py-2 px-3">Realized Return</th>
                 <th className="py-2 px-3">Status</th>
                 <th className="py-2 px-3">Technical Setup Catalyst</th>
+                <th className="py-2 px-3 text-center">Trading Graph</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1E1E24] text-zinc-300 font-mono text-xs">
@@ -845,12 +1023,27 @@ export const HistoricalChartsTab: React.FC<HistoricalChartsTabProps> = ({ record
                   <td className="py-2.5 px-3 font-sans text-zinc-400 text-[11px] max-w-xs truncate" title={pick.setup}>
                     {pick.setup}
                   </td>
+                  <td className="py-2.5 px-3 text-center">
+                    <button
+                      onClick={() => {
+                        setSelectedGraphTicker(pick.ticker);
+                        setStrategyMode('trading_graphs');
+                      }}
+                      className="px-2 py-0.5 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded text-[10px] font-sans font-medium transition cursor-pointer inline-flex items-center space-x-1"
+                      title="Open interactive trading graph for this setup"
+                    >
+                      <BarChart2 className="w-3 h-3" />
+                      <span>Graph</span>
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-    </div>
-  );
+    </>
+  )}
+</div>
+);
 };

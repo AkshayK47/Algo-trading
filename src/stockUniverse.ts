@@ -332,25 +332,51 @@ export const ALL_SECTORS: string[] = Array.from(
   new Set(ALL_INDIAN_STOCKS_UNIVERSE.map((s) => s.sector))
 ).sort();
 
+import { getMarketSessionInfo } from './utils/marketSession';
+
 // ============================================================================
 // DETERMINISTIC REALISTIC CANDLE GENERATOR & QUANT EVALUATION
 // ============================================================================
-export function generateCandlesForStock(basePrice: number, seed: number = 42, count: number = 90): Candle[] {
+export function generateCandlesForStock(
+  basePrice: number, 
+  seed: number = 42, 
+  count: number = 90,
+  anchorDateStr?: string
+): Candle[] {
   const candles: Candle[] = [];
   let price = basePrice * 0.86;
-  const now = new Date();
+  
+  // Anchor to active session date (e.g. Friday if today is Sunday/weekend)
+  const sessionInfo = getMarketSessionInfo();
+  const targetDateStr = anchorDateStr || sessionInfo.latestTradingDate;
+  const [year, month, day] = targetDateStr.split('-').map(Number);
+  // Noon UTC anchor to avoid timezone midnight slippage
+  const anchorDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-  // Simple deterministic PRNG based on seed
+  // Deterministic PRNG based on seed
   let s = Math.abs(seed) || 42;
   const prng = () => {
     s = (s * 9301 + 49297) % 233280;
     return s / 233280;
   };
 
-  for (let i = count; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    if (d.getDay() === 0 || d.getDay() === 6) continue;
+  // Build calendar backwards from anchor date skipping weekends
+  const tradingDates: string[] = [];
+  let cur = new Date(anchorDate);
+  while (tradingDates.length < count) {
+    const dayOfWeek = cur.getUTCDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Skip Sunday (0) and Saturday (6)
+      const y = cur.getUTCFullYear();
+      const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(cur.getUTCDate()).padStart(2, '0');
+      tradingDates.unshift(`${y}-${m}-${d}`);
+    }
+    cur.setUTCDate(cur.getUTCDate() - 1);
+  }
 
+  // Generate price walk sequentially across trading dates
+  for (let i = 0; i < tradingDates.length; i++) {
+    const dateStr = tradingDates[i];
     const change = (prng() - 0.47 + 0.008) * 0.02 * price;
     const open = price;
     const close = price + change;
@@ -361,15 +387,15 @@ export function generateCandlesForStock(basePrice: number, seed: number = 42, co
     price = close;
 
     candles.push({
-      date: d.toISOString().split('T')[0],
+      date: dateStr,
       open: Math.round(open * 100) / 100,
       high: Math.round(high * 100) / 100,
       low: Math.round(low * 100) / 100,
       close: Math.round(close * 100) / 100,
       volume,
-      ema50: Math.round(close * 0.96 * 100) / 100,
-      ema200: Math.round(close * 0.91 * 100) / 100,
-      supertrend: Math.round(low * 0.97 * 100) / 100,
+      ema50: Math.round(close * 0.962 * 100) / 100,
+      ema200: Math.round(close * 0.908 * 100) / 100,
+      supertrend: Math.round(low * 0.975 * 100) / 100,
       rsi: Math.round(52 + prng() * 16),
       macd: Math.round((prng() * 12 + 2) * 10) / 10,
       macdSignal: Math.round((prng() * 8 + 2) * 10) / 10,
@@ -382,7 +408,8 @@ export function generateCandlesForStock(basePrice: number, seed: number = 42, co
 // Algorithmic evaluation engine mirroring Python's SeniorTraderAnalysisEngine
 export function evaluateAnyStock(
   ticker: string,
-  stockInput?: Partial<StockInfo>
+  stockInput?: Partial<StockInfo>,
+  sessionDateStr?: string
 ): { signal: QuantitativeSignal; passesFilter: boolean; rejectionReason?: string } {
   const upperTicker = ticker.toUpperCase().trim();
   const known = ALL_INDIAN_STOCKS_UNIVERSE.find((s) => s.ticker === upperTicker);
@@ -391,15 +418,21 @@ export function evaluateAnyStock(
   const category = stockInput?.category || known?.category || (upperTicker.length <= 5 ? 'Large-Cap (Nifty 100)' : 'Mid-Cap (Nifty Midcap 150)');
   const basePrice = stockInput?.basePrice || known?.basePrice || 1250.00;
 
-  // Generate hash seed
+  const sessionInfo = getMarketSessionInfo();
+  const sessionDate = sessionDateStr || sessionInfo.latestTradingDate;
+
+  // Generate deterministic hash seed anchored to ticker AND session date
+  // This ensures that scans run multiple times on a weekend (Sunday) or after hours
+  // generate 100% identical and stable results!
   let seed = 0;
-  for (let i = 0; i < upperTicker.length; i++) {
-    seed = (seed << 5) - seed + upperTicker.charCodeAt(i);
+  const combinedKey = `${upperTicker}_${sessionDate}`;
+  for (let i = 0; i < combinedKey.length; i++) {
+    seed = (seed << 5) - seed + combinedKey.charCodeAt(i);
     seed |= 0;
   }
   seed = Math.abs(seed);
 
-  const history = generateCandlesForStock(basePrice, seed, 90);
+  const history = generateCandlesForStock(basePrice, seed, 90, sessionDate);
   const lastCandle = history[history.length - 1];
   const closePrice = lastCandle.close;
 
@@ -451,7 +484,7 @@ export function evaluateAnyStock(
   ];
 
   const signal: QuantitativeSignal = {
-    id: `scan-${upperTicker}-${Date.now()}`,
+    id: `scan-${upperTicker}-${sessionDate}`,
     ticker: upperTicker,
     companyName: name,
     marketCapCategory: category as any,
@@ -483,4 +516,57 @@ export function evaluateAnyStock(
   };
 
   return { signal, passesFilter, rejectionReason };
+}
+
+/**
+ * Executes a deterministic quantitative scan over the selected universe.
+ * Consistently returns top candidates sorted by conviction score.
+ */
+export function getDeterministicStockScan(params: {
+  universe?: string;
+  sectors?: string[];
+  minConviction?: number;
+  sessionDateStr?: string;
+  limit?: number;
+}): { approved: QuantitativeSignal[]; rejected: any[] } {
+  const { universe = 'ALL', sectors = [], minConviction = 65, sessionDateStr, limit = 20 } = params;
+
+  let pool = ALL_INDIAN_STOCKS_UNIVERSE;
+  if (universe === 'LARGE') {
+    pool = NIFTY_100_STOCKS;
+  } else if (universe === 'MID') {
+    pool = NIFTY_MIDCAP_150_STOCKS;
+  }
+
+  if (sectors.length > 0) {
+    pool = pool.filter((stock) => stockMatchesSelectedSectors(stock, sectors));
+  }
+
+  const approved: QuantitativeSignal[] = [];
+  const rejected: any[] = [];
+
+  // Evaluate each constituent with the deterministic session anchor
+  pool.forEach((stock) => {
+    const res = evaluateAnyStock(stock.ticker, stock, sessionDateStr);
+    if (res.passesFilter && res.signal.convictionScore >= minConviction) {
+      approved.push(res.signal);
+    } else {
+      rejected.push({
+        ticker: res.signal.ticker,
+        category: res.signal.marketCapCategory,
+        convictionScore: res.signal.convictionScore,
+        backtestWinRate: res.signal.backtestWinRate,
+        backtestMdd: res.signal.backtestMdd,
+        rejectionReason: res.rejectionReason || 'Sanity Threshold Criteria Not Met',
+      });
+    }
+  });
+
+  // Sort deterministically: highest conviction score first, then win rate
+  approved.sort((a, b) => b.convictionScore - a.convictionScore || b.backtestWinRate - a.backtestWinRate);
+
+  return {
+    approved: approved.slice(0, limit),
+    rejected: rejected.slice(0, 15),
+  };
 }
