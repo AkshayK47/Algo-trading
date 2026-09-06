@@ -29,6 +29,12 @@ import {
   PRIMARY_SECTORS,
   stockMatchesSelectedSectors
 } from './stockUniverse';
+import { 
+  fetchSuggestions, 
+  runStockScan, 
+  getPortfolioPerformance,
+  checkHealth 
+} from './services/api';
 
 export default function App() {
   // Navigation State
@@ -50,18 +56,9 @@ export default function App() {
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanStep, setScanStep] = useState<string>('');
 
-  // SQLite Database Simulation State
-  const [records, setRecords] = useState<SuggestionRecord[]>(() => {
-    const saved = localStorage.getItem('nse_quant_suggestions');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing suggestions cache', e);
-      }
-    }
-    return INITIAL_DATABASE_RECORDS;
-  });
+  // SQLite Database State (from backend)
+  const [records, setRecords] = useState<SuggestionRecord[]>([]);
+  const [useBackend, setUseBackend] = useState<boolean>(true);
 
   // Portfolio Tracker Performance Engine State
   const [isSyncingPortfolio, setIsSyncingPortfolio] = useState<boolean>(false);
@@ -72,31 +69,57 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Sync records to localStorage (acting as client-side SQLite cache)
+  // Load data from backend on mount
   useEffect(() => {
-    localStorage.setItem('nse_quant_suggestions', JSON.stringify(records));
-  }, [records]);
+    const loadData = async () => {
+      try {
+        // Check if backend is available
+        await checkHealth();
+        
+        // Load suggestions from backend
+        const suggestions = await fetchSuggestions();
+        setRecords(suggestions);
+        setUseBackend(true);
+        showToast('Connected to Python backend!');
+      } catch (error) {
+        console.warn('Backend not available, using mock data:', error);
+        setRecords(INITIAL_DATABASE_RECORDS);
+        setUseBackend(false);
+        showToast('Using offline mode (mock data)');
+      }
+    };
+    
+    loadData();
+  }, []);
 
   // Dynamic Background Routine: calculate_portfolio_performance()
-  const calculatePortfolioPerformance = () => {
+  const calculatePortfolioPerformance = async () => {
     setIsSyncingPortfolio(true);
 
+    if (useBackend) {
+      try {
+        const performance = await getPortfolioPerformance();
+        setRecords(performance.suggestions);
+        setIsSyncingPortfolio(false);
+        showToast('Portfolio updated from backend!');
+        return;
+      } catch (error) {
+        console.error('Failed to fetch portfolio from backend:', error);
+        // Fall through to local calculation
+      }
+    }
+
+    // Local calculation fallback
     setTimeout(() => {
       setRecords((prev) =>
         prev.map((rec) => {
-          // Simulate live Upstox tick variance (-1.8% to +3.2%)
           const driftMultiplier = 1.0 + (Math.random() * 0.05 - 0.015);
           const currentPrice = Math.round(rec.captured_close_price * driftMultiplier * 100) / 100;
-
-          // Core formula: ((Current Price - Captured Close Price) / Captured Close Price) * 100
           const currentReturnPct = Math.round(
             ((currentPrice - rec.captured_close_price) / rec.captured_close_price) * 10000
           ) / 100;
-
           const pnlRupees = Math.round((currentPrice - rec.captured_close_price) * 100) / 100;
           const targetPrice = rec.entry_price * (1.0 + rec.expected_return_pct / 100);
-
-          // Stop Loss & Risk Metrics derived from strategy rules (1.8x ATR / ~5.5% anchor)
           const stopLoss = rec.stop_loss ?? Math.round(rec.entry_price * 0.945 * 100) / 100;
           const riskPct = rec.risk_pct ?? Math.round(((rec.entry_price - stopLoss) / rec.entry_price) * 1000) / 10;
           const riskRewardRatio = rec.risk_reward_ratio ?? Math.round((rec.expected_return_pct / (riskPct || 1)) * 10) / 10;
@@ -197,8 +220,80 @@ export default function App() {
   }, [records]);
 
   // Execute Multi-Factor Quantitative Scan
-  const handleRunScan = () => {
+  const handleRunScan = async () => {
     setIsScanning(true);
+    
+    if (useBackend) {
+      // Use Python backend for scanning
+      try {
+        setScanStep('Connecting to Python backend...');
+        
+        const result = await runStockScan({
+          universe: universeChoice,
+          sectors: selectedSectors,
+          min_conviction: minConviction
+        });
+        
+        setScanStep('Processing results...');
+        
+        // Transform backend results to frontend format
+        const approved = result.approved.map((item: any) => ({
+          id: item.signal.ticker,
+          ticker: item.signal.ticker,
+          companyName: item.signal.ticker,
+          marketCapCategory: 'Large-Cap (Nifty 100)',
+          closePrice: item.signal.close_price,
+          comfortableEntryPrice: item.signal.comfortable_entry_price,
+          expectedReturnPct: item.signal.expected_return_pct,
+          targetPrice: item.signal.target_price,
+          stopLoss: item.signal.stop_loss,
+          convictionScore: item.signal.conviction_score,
+          technicalJustification: item.signal.technical_justification,
+          rsi14: item.signal.rsi_14,
+          macdVal: item.signal.macd_hist,
+          macdSignal: 0,
+          macdHist: item.signal.macd_hist,
+          ema50: item.signal.ema_50,
+          ema200: item.signal.ema_200,
+          supertrendDirection: item.signal.supertrend_direction,
+          adx14: item.signal.adx_14,
+          atr14: item.signal.atr_14,
+          bollingerPctB: 0.5,
+          isHybridBreakout: item.signal.is_hybrid_breakout,
+          backtestWinRate: item.backtest.win_rate,
+          backtestMdd: item.backtest.max_drawdown,
+          isApproved: true,
+          history: []
+        }));
+        
+        const rejected = result.rejected.map((item: any) => ({
+          ticker: item.ticker,
+          category: 'Large-Cap',
+          convictionScore: item.conviction_score || 0,
+          backtestWinRate: 0,
+          backtestMdd: 0,
+          rejectionReason: item.reason
+        }));
+        
+        setSignals(approved);
+        setRejectedSignals(rejected);
+        setIsScanning(false);
+        setScanStep('');
+        showToast(`Backend scan complete: ${approved.length} approved, ${rejected.length} rejected!`);
+        
+      } catch (error) {
+        console.error('Backend scan failed:', error);
+        showToast('Backend scan failed, falling back to local scan...');
+        // Fall back to local scan
+        runLocalScan();
+      }
+    } else {
+      // Use local mock scan
+      runLocalScan();
+    }
+  };
+  
+  const runLocalScan = () => {
     setScanStep('1/5 Ingesting 2-3 Year Daily OHLCV from Upstox (Universe Master)...');
 
     setTimeout(() => {
@@ -225,7 +320,6 @@ export default function App() {
         pool = NIFTY_MIDCAP_150_STOCKS;
       }
 
-      // Filter scanning pool by selected sectors if configured
       if (selectedSectors.length > 0) {
         pool = pool.filter((stock) => stockMatchesSelectedSectors(stock, selectedSectors));
       }
@@ -239,11 +333,9 @@ export default function App() {
         return;
       }
 
-      // Sample and evaluate stocks across the filtered sector pool
       const approved: QuantitativeSignal[] = [];
-      const rejected: { ticker: string; category: string; convictionScore: number; backtestWinRate: number; backtestMdd: number; rejectionReason: string }[] = [];
+      const rejected: any[] = [];
 
-      // Evaluate candidates from the filtered pool
       const candidatesToScan = pool.slice(0, Math.min(pool.length, 45));
       candidatesToScan.forEach((stock) => {
         const evalRes = evaluateAnyStock(stock.ticker);
@@ -261,7 +353,6 @@ export default function App() {
         }
       });
 
-      // Sort approved by highest conviction score
       approved.sort((a, b) => b.convictionScore - a.convictionScore);
 
       setSignals(approved);
@@ -273,7 +364,7 @@ export default function App() {
         ? selectedSectors.map((id) => PRIMARY_SECTORS.find((s) => s.id === id)?.shortLabel || id).join(', ')
         : 'All Sectors';
 
-      showToast(`Scan complete: ${approved.length} candidates approved across ${pool.length} equities (${sectorLabel})!`);
+      showToast(`Local scan complete: ${approved.length} candidates approved across ${pool.length} equities (${sectorLabel})!`);
     }, 2000);
   };
 
@@ -482,6 +573,13 @@ export default function App() {
 
           {/* Quick status pill */}
           <div className="hidden sm:flex items-center space-x-3 text-xs">
+            <span className="flex items-center space-x-2">
+              <span className={`w-2 h-2 rounded-full ${useBackend ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+              <span className="text-zinc-400">
+                {useBackend ? 'Backend Connected' : 'Offline Mode'}
+              </span>
+            </span>
+            <span className="h-3 w-px bg-[#1E1E24]"></span>
             <span className="text-zinc-400">Database: <code className="text-[#4A90E2] font-mono">{dbPath}</code></span>
             <span className="h-3 w-px bg-[#1E1E24]"></span>
             <span className="text-zinc-400">

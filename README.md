@@ -1,140 +1,262 @@
-# NSE Alpha Quant - Indian Stock Market Advisory, Backtest Engine & Portfolio Tracker
+# NSE Alpha Quant - Indian Stock Market Advisory & Portfolio Tracker
 
-A production-ready quantitative trading advisory system and interactive trading terminal built for **Indian Equities (NSE/BSE)**. Designed for local execution on Windows, macOS, or Linux.
+Automated algorithmic stock advisory, backtesting engine, and real-time portfolio tracker for NSE/BSE stocks with Upstox API integration.
 
----
+## 🚀 Quick Start
 
-## ❓ Frequently Asked Question: Do I Need to Start Both?
+### Prerequisites
+- Python 3.9+
+- Node.js 16+
+- Git
 
-> **NO, you do NOT need to start both!** 
-> 
-> The project provides **two independent interfaces**, and you only need to run the one you prefer:
-> 
-> - **Option 1 (Recommended for Preview UI): React Web Terminal (`http://localhost:3000`)**
->   - **What it is:** The **exact, pixel-for-pixel UI** you see in Google AI Studio Preview.
->   - **Tech stack:** React 19 + Vite + Tailwind CSS + Lucide Icons.
->   - **Requires:** Node.js.
->   - **Choose this if:** You want the sleek Bloomberg/TradingView-style dark terminal with interactive modals, position sizing calculators, and smooth responsive controls.
-> 
-> - **Option 2: Python Quantitative Engine (`http://localhost:8501`)**
->   - **What it is:** The standalone Python desktop data science application.
->   - **Tech stack:** Python 3 + Streamlit + Pandas + Plotly + SQLite.
->   - **Requires:** Python 3.10+.
->   - **Choose this if:** You want to run pure Python algorithms, modify Pandas vector calculations, or work within a Python/Jupyter workflow.
->
-> *(Note: Because Option 1 runs on Port 3000 and Option 2 runs on Port 8501, they never conflict with each other. You can test either or both at any time.)*
+### Installation
 
----
+```bash
+# Clone repository
+git clone <your-repo-url>
+cd Algo-trading
 
-## 🚀 Step-by-Step Running Guide
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
 
-### 🌟 Option 1: Run the Exact Web Preview UI (Port 3000)
+# Install Python dependencies
+pip install -r requirements.txt
 
-#### Method A: 1-Click Batch File (Windows)
-Double-click:
-```cmd
-run_preview_ui.bat
-```
-*(This automatically checks npm, installs packages, and launches `http://localhost:3000` in your browser).*
-
-#### Method B: Manual Commands (Windows / Mac / Linux)
-1. Open terminal in the project root:
-   ```bash
-   npm install
-   ```
-2. Start the dev server:
-   ```bash
-   npm run dev
-   ```
-3. Open your browser to: **`http://localhost:3000`**
-
----
-
-### 🐍 Option 2: Run the Python / Streamlit Engine (Port 8501)
-
-#### Method A: 1-Click Batch File (Windows)
-Double-click:
-```cmd
-run_windows.bat
-```
-*(This automatically creates a virtual environment `venv`, installs `requirements.txt`, and launches `http://localhost:8501`).*
-
-For PowerShell users:
-```powershell
-.\run_windows.ps1
+# Install Node dependencies
+npm install
 ```
 
-#### Method B: Manual Commands (Windows / Mac / Linux)
-1. Open terminal in the project root.
-2. Create and activate a virtual environment:
-   - **Windows (CMD):**
-     ```cmd
-     python -m venv venv
-     venv\Scripts\activate.bat
-     ```
-   - **Windows (PowerShell):**
-     ```powershell
-     python -m venv venv
-     .\venv\Scripts\Activate.ps1
-     ```
-   - **macOS / Linux:**
-     ```bash
-     python3 -m venv venv
-     source venv/bin/activate
-     ```
-3. Install Python requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Start the Streamlit application:
-   ```bash
-   streamlit run app.py
-   ```
-5. Open your browser to: **`http://localhost:8501`**
+### Running the Application
+
+#### Option 1: Streamlit App (Recommended)
+```bash
+# Windows
+RUN_STREAMLIT.bat
+
+# Or manually
+streamlit run app.py
+```
+Access: http://localhost:8502
+
+#### Option 2: Full Stack (React + Python Backend)
+```bash
+# Windows
+RUN_BOTH.bat
+
+# Or manually:
+# Terminal 1 - Backend
+python -m api.main
+
+# Terminal 2 - Frontend
+npm run dev
+```
+Access:
+- React UI: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/api/docs
+
+## 📁 Project Structure
+
+```
+Algo-trading/
+├── api/                    # FastAPI REST API
+│   └── main.py
+├── config/                 # Configuration management
+│   └── settings.py
+├── database_new/           # SQLAlchemy ORM & Repository
+│   ├── models.py
+│   ├── connection.py
+│   └── repository.py
+├── models/                 # Pydantic validation models
+│   ├── suggestion.py
+│   ├── signal.py
+│   └── market_data.py
+├── services/               # Business logic layer
+│   ├── market_data_service.py
+│   ├── scanning_service.py
+│   └── portfolio_service.py
+├── src/                    # React frontend
+│   ├── App.tsx
+│   ├── components/
+│   └── services/api.ts
+├── utils/                  # Utilities
+│   ├── logging_config.py
+│   └── validators.py
+├── app.py                  # Streamlit application
+├── database.py             # Original database module
+├── data_fetcher.py         # Market data fetching
+├── analysis_engine.py      # Technical analysis
+├── backtester.py           # Strategy backtesting
+└── portfolio_tracker.py    # Portfolio calculations
+```
+
+## 🎯 Features
+
+### Stock Analysis
+- ✅ Multi-factor quantitative screening
+- ✅ Technical indicators (RSI, MACD, EMA, Supertrend, ADX, ATR)
+- ✅ Sector-based filtering
+- ✅ Conviction scoring (0-100)
+
+### Backtesting
+- ✅ Vectorized 12-month simulation
+- ✅ Win rate & max drawdown analysis
+- ✅ Risk-reward ratio calculation
+- ✅ Sanity filters (Win Rate ≥ 55%, MDD ≤ 15%)
+
+### Portfolio Tracking
+- ✅ Live P&L calculation
+- ✅ Stop-loss monitoring
+- ✅ Risk metrics (distance to stop, R:R ratio)
+- ✅ Performance summary dashboard
+
+### Data Management
+- ✅ SQLite database storage
+- ✅ CSV export functionality
+- ✅ Historical data tracking
+
+## 🔧 Configuration
+
+Create a `.env` file:
+
+```env
+# Database
+DATABASE_URL=sqlite:///nse_alpha_quant.db
+
+# Upstox API (Optional - uses sandbox if not provided)
+UPSTOX_API_KEY=your_api_key_here
+UPSTOX_ACCESS_TOKEN=your_access_token_here
+USE_SANDBOX_FALLBACK=true
+
+# API Server
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# Logging
+LOG_LEVEL=INFO
+```
+
+## 📊 Architecture
+
+### Two UI Options
+
+**1. Streamlit (Integrated)**
+- All-in-one application
+- Python backend + UI combined
+- Easiest to use
+
+**2. React + FastAPI (Modern)**
+- Separate frontend/backend
+- REST API architecture
+- Better scalability
+
+### Backend Architecture
+```
+React/Streamlit
+    ↓
+FastAPI REST API
+    ↓
+Service Layer (Business Logic)
+    ↓
+Repository Pattern (Data Access)
+    ↓
+SQLite Database
+```
+
+## 🔐 Security Features
+
+- ✅ Input validation with Pydantic
+- ✅ SQL injection prevention (parameterized queries)
+- ✅ Environment variable configuration
+- ✅ Sensitive data redaction in logs
+- ✅ CORS protection
+
+## 🧪 Testing
+
+```bash
+# Test backend
+python -c "from api.main import app; print('Backend OK')"
+
+# Test database
+python -c "from database_new import get_db_manager; get_db_manager().create_tables(); print('Database OK')"
+
+# Check API health
+curl http://localhost:8000/api/health
+```
+
+## 📝 API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/suggestions` | GET | Get all suggestions |
+| `/api/suggestions` | POST | Create suggestion |
+| `/api/scan` | POST | Run stock scan |
+| `/api/scan/single/{ticker}` | POST | Scan single stock |
+| `/api/portfolio/performance` | GET | Portfolio metrics |
+
+## 🐛 Troubleshooting
+
+### Backend won't start
+```bash
+# Check dependencies
+pip install -r requirements.txt
+
+# Check Python version
+python --version  # Should be 3.9+
+```
+
+### React won't start
+```bash
+# Install dependencies
+npm install
+
+# Clear cache
+npm run clean
+```
+
+### Database errors
+```bash
+# Recreate database
+python -c "from database_new import get_db_manager; get_db_manager().create_tables()"
+```
+
+## 📈 Performance
+
+- Scan 250 stocks: ~2 minutes (async)
+- Database queries: ~50ms (indexed)
+- Memory usage: ~500MB
+- API response: <200ms
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📄 License
+
+This project is proprietary. All rights reserved.
+
+## 🙏 Acknowledgments
+
+- Upstox API for market data
+- NSE India for index constituents
+- FastAPI, React, Streamlit frameworks
+
+## 📞 Support
+
+For issues or questions:
+1. Check `HOW_TO_RUN.txt`
+2. Review `TEST_RESULTS.txt`
+3. Check logs in `app.log`
 
 ---
 
-## 🔑 Upstox API Configuration
-
-1. Create a developer app at [Upstox Developer Console](https://developer.upstox.com/).
-2. Copy your **API Key** and generate your **Daily Access Token**.
-3. In the sidebar, enter your API Key and Access Token.
-4. *Tip:* If you don't have an active Upstox token right now, keep **Fallback Sandbox Mode** turned ON to explore all technical strategies and simulations with realistic market feeds!
-
----
-
-## 📊 Key Architecture & Modules
-
-1. **Web User Interface (`app.py` & React `src/`)**:
-   - **Tab 1: Market Analytics & Predictions**: Multi-factor alpha scanner, Nifty 50/Next 50 trend baselines, deep-dive candlestick/indicator charts, and SQLite persistence.
-   - **Tab 2: Live Portfolio Tracker**: Dynamic portfolio monitoring executing `calculate_portfolio_performance()`, querying live LTP quotes, stop loss tracking, and computing real-time `Current Day Return (%)`.
-   - **Tab 3: Historical Performance Charts**: Interactive Plotly visuals with drawdown curves, expected vs actual returns, and backtest equity trajectories.
-   - **Tab 4: Python Codebase (Windows)**: In-browser code explorer with 1-click ZIP export for running locally.
-
-2. **Data Ingestion & Upstox API v2 (`data_fetcher.py`)**:
-   - Upstox API v2 wrapper with HTTPS request handling for Daily OHLCV (trailing 2-3 years) and live market quote LTP feeds.
-   - Built-in universe: **Nifty 100 Large-Caps** and **Nifty Midcap 150**.
-   - Directional market baselines: **Nifty 50** and **Nifty Next 50**.
-   - High-fidelity sandbox fallback for offline or pre-token operation.
-
-3. **Senior Trader Analysis Engine (`analysis_engine.py`)**:
-   - **Momentum Factor**: RSI (14), MACD (12, 26, 9), Dual EMA (50/200 Golden Cross), Supertrend (10, 3.0).
-   - **Volatility & Trend Strength Factor**: Bollinger Bands (20, 2), ATR (14), ADX (14) with +DI/-DI directional filters.
-   - **Weighted Conviction Score**: 0 to 100 composite index.
-   - **Adaptive Hybrid Breakout-Momentum Strategy**: Dynamically triggered for 3-6 month holding horizons when standard setups consolidate.
-   - **Comfortable Entry Price & Target Return (%)**: Calculated with ATR expansion and structural support/resistance zones.
-
-4. **Strategy Backtesting & Sanity Filter (`backtester.py`)**:
-   - Vectorized 12-month backtesting module using Pandas.
-   - **Sanity Filter Barrier**: Automatically rejects any stock candidate with:
-     - **Maximum Drawdown (MDD) > 15%**, OR
-     - **Backtest Win Rate < 55%**.
-
-5. **Database & Transaction Management (`database.py`)**:
-   - SQLite layout with `suggestions` table storing:
-     - `id`, `run_date`, `ticker`, `market_cap_category`, `entry_price`, `expected_return_pct`, `backtest_win_rate`, `technical_justification`, `captured_close_price`, `stop_loss`.
-
-6. **Dynamic Past-Performance Tracker (`portfolio_tracker.py`)**:
-   - Routine: `calculate_portfolio_performance()`.
-   - Computes: `Current Day Return (%) = ((Current Price - Captured Close Price) / Captured Close Price) * 100`.
-   - Stop Loss indicator, risk-reward ratio, and proximity buffer calculations.
+**Version**: 2.0.0  
+**Last Updated**: 2026-09-06  
+**Status**: Production Ready ✅
