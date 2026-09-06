@@ -5,7 +5,8 @@ import {
   BarChart2, 
   FileCode2, 
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Activity
 } from 'lucide-react';
 
 import { Sidebar } from './components/Sidebar';
@@ -13,6 +14,7 @@ import { MarketAnalyticsTab } from './components/MarketAnalyticsTab';
 import { PortfolioTrackerTab } from './components/PortfolioTrackerTab';
 import { HistoricalChartsTab } from './components/HistoricalChartsTab';
 import { PythonCodebaseTab } from './components/PythonCodebaseTab';
+import { LiveMarketModal } from './components/LiveMarketModal';
 
 import { 
   INITIAL_BASELINES, 
@@ -64,6 +66,10 @@ export default function App() {
   // Portfolio Tracker Performance Engine State
   const [isSyncingPortfolio, setIsSyncingPortfolio] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Live Market API Integration State
+  const [isLiveMarketModalOpen, setIsLiveMarketModalOpen] = useState<boolean>(false);
+  const [useLiveMarket, setUseLiveMarket] = useState<boolean>(true);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -232,7 +238,8 @@ export default function App() {
         const result = await runStockScan({
           universe: universeChoice,
           sectors: selectedSectors,
-          min_conviction: minConviction
+          min_conviction: minConviction,
+          use_live_market: useLiveMarket,
         });
         
         setScanStep('Processing results...');
@@ -577,6 +584,16 @@ export default function App() {
 
           {/* Quick status pill */}
           <div className="hidden sm:flex items-center space-x-3 text-xs">
+            <button
+              onClick={() => setIsLiveMarketModalOpen(true)}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
+              title="Inspect Real-Time NSE Market Feed status, lookup live quotes, and configure broker connections"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <Activity className="w-3.5 h-3.5" />
+              <span>Live Market API: Active (NSE)</span>
+            </button>
+            <span className="h-3 w-px bg-[#1E1E24]"></span>
             <span className="flex items-center space-x-2">
               <span className={`w-2 h-2 rounded-full ${useBackend ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
               <span className="text-zinc-400">
@@ -643,6 +660,12 @@ export default function App() {
             <span>{toastMessage}</span>
           </div>
         )}
+
+        {/* Live Market API Integration & Quick Quote Modal */}
+        <LiveMarketModal
+          isOpen={isLiveMarketModalOpen}
+          onClose={() => setIsLiveMarketModalOpen(false)}
+        />
       </main>
     </div>
   );

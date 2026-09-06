@@ -64,15 +64,34 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
   const n50 = baselines.NIFTY_50;
   const nn50 = baselines.NIFTY_NEXT_50;
 
-  const handleQuickScan = (tickerToScan?: string) => {
+  const handleQuickScan = async (tickerToScan?: string) => {
     const sym = (tickerToScan || customTickerInput).trim().toUpperCase();
     if (!sym) return;
 
     setIsQuickScanning(true);
     setQuickScanFeedback(null);
 
-    setTimeout(() => {
+    try {
       const result = evaluateAnyStock(sym, undefined, sessionInfo.latestTradingDate);
+      
+      // Fetch Live Market Quote from real-time API
+      let livePriceInfo = '';
+      try {
+        const liveRes = await fetch(`/api/market/quote/${encodeURIComponent(sym)}`);
+        if (liveRes.ok) {
+          const liveQuote = await liveRes.json();
+          if (liveQuote && liveQuote.isLive && liveQuote.ltp > 0) {
+            result.signal.closePrice = liveQuote.ltp;
+            result.signal.comfortableEntryPrice = Math.round((liveQuote.ltp - 0.4 * result.signal.atr14) * 100) / 100;
+            result.signal.targetPrice = Math.round(result.signal.comfortableEntryPrice * (1 + result.signal.expectedReturnPct / 100) * 100) / 100;
+            result.signal.stopLoss = Math.round(Math.max(result.signal.comfortableEntryPrice * 0.935, result.signal.comfortableEntryPrice - 1.8 * result.signal.atr14) * 100) / 100;
+            livePriceInfo = ` [Live NSE LTP: ₹${liveQuote.ltp.toFixed(2)}]`;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch live quote in quick scan:', err);
+      }
+
       setIsQuickScanning(false);
 
       if (result.passesFilter) {
@@ -82,7 +101,7 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
         setSelectedStockId(result.signal.id);
         setQuickScanFeedback({
           type: 'success',
-          message: `✅ ${result.signal.ticker} approved! Conviction: ${result.signal.convictionScore}/100 | Win Rate: ${result.signal.backtestWinRate}% | MDD: ${result.signal.backtestMdd}%`,
+          message: `✅ ${result.signal.ticker} approved!${livePriceInfo} Conviction: ${result.signal.convictionScore}/100 | Win Rate: ${result.signal.backtestWinRate}% | MDD: ${result.signal.backtestMdd}%`,
         });
       } else {
         setQuickScanFeedback({
@@ -91,7 +110,13 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
         });
       }
       setCustomTickerInput('');
-    }, 400);
+    } catch {
+      setIsQuickScanning(false);
+      setQuickScanFeedback({
+        type: 'error',
+        message: `Failed to evaluate ${sym}`,
+      });
+    }
   };
 
   return (
@@ -577,6 +602,7 @@ export const MarketAnalyticsTab: React.FC<MarketAnalyticsTabProps> = ({
               strategyType={selectedStock.isHybridBreakout ? 'Hybrid Breakout' : 'Quantitative Trend'}
               winRate={selectedStock.backtestWinRate}
               maxDrawdown={selectedStock.backtestMdd}
+              atr14={selectedStock.atr14}
               height={400}
             />
           </div>

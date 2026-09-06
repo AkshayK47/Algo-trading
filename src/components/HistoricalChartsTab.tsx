@@ -390,6 +390,7 @@ export const HistoricalChartsTab: React.FC<HistoricalChartsTabProps> = ({ record
             strategyType={graphStrategyType === 'breakout' ? 'Hybrid Breakout' : 'Mean Reversion'}
             winRate={selectedStockData.backtestWinRate}
             maxDrawdown={selectedStockData.backtestMdd}
+            atr14={selectedStockData.atr14}
             height={460}
           />
         </div>

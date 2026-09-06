@@ -189,7 +189,7 @@ export const NIFTY_MIDCAP_150_STOCKS: StockInfo[] = [
   { ticker: 'IDFCFIRSTB', name: 'IDFC First Bank Ltd', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'Financial Services', instrumentKey: 'NSE_EQ|INE092T01019', basePrice: 76.50 },
   { ticker: 'UNIONBANK', name: 'Union Bank of India', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'Financial Services', instrumentKey: 'NSE_EQ|INE692A01016', basePrice: 128.00 },
   { ticker: 'INDIANB', name: 'Indian Bank', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'Financial Services', instrumentKey: 'NSE_EQ|INE562A01011', basePrice: 560.00 },
-  { ticker: 'BANKINDIA', name: 'Bank of India', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'Financial Services', instrumentKey: 'NSE_EQ|INE084A01016', basePrice: 115.00 },
+  { ticker: 'BANKINDIA', name: 'Bank of India', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'Financial Services', instrumentKey: 'NSE_EQ|INE084A01016', basePrice: 145.04 },
   { ticker: 'ABCAPITAL', name: 'Aditya Birla Capital Ltd', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'Financial Services', instrumentKey: 'NSE_EQ|INE674K01013', basePrice: 225.00 },
   { ticker: 'LTF', name: 'L&T Finance Ltd', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'Financial Services', instrumentKey: 'NSE_EQ|INE498L01015', basePrice: 178.00 },
   { ticker: 'MANAPPURAM', name: 'Manappuram Finance Ltd', category: 'Mid-Cap (Nifty Midcap 150)', sector: 'NBFC & Gold Loans', instrumentKey: 'NSE_EQ|INE522D01027', basePrice: 195.00 },

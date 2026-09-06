@@ -136,6 +136,7 @@ export async function runStockScan(params: {
   universe?: string;
   sectors?: string[];
   min_conviction?: number;
+  use_live_market?: boolean;
 }): Promise<{
   approved: any[];
   rejected: any[];

@@ -110,3 +110,31 @@ export interface PortfolioSummary {
   positionsAboveStop?: number;
   avgStopBufferPct?: number;
 }
+
+export interface LiveQuote {
+  ticker: string;
+  symbol: string;
+  ltp: number;
+  prevClose: number;
+  dayChange: number;
+  dayChangePct: number;
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+  timestamp: string;
+  source: 'NSE Real-Time Feed' | 'Upstox v2 API' | 'Simulated Engine';
+  isLive: boolean;
+}
+
+export interface LiveMarketStatus {
+  connected: boolean;
+  provider: string;
+  upstoxConfigured: boolean;
+  latencyMs: number;
+  lastUpdated: string;
+  cachedQuotesCount: number;
+  activeProvider: 'NSE_CLOUD' | 'UPSTOX_V2';
+}

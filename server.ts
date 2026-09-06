@@ -8,6 +8,14 @@ import {
   stockMatchesSelectedSectors 
 } from './src/stockUniverse';
 import { getMarketSessionInfo } from './src/utils/marketSession';
+import {
+  fetchLiveQuote,
+  fetchLiveQuotesBatch,
+  fetchLiveCandles,
+  getLiveMarketStatus,
+  setUpstoxToken,
+  getUpstoxToken,
+} from './src/services/liveMarketService';
 
 const app = express();
 const PORT = 3000;
@@ -277,14 +285,83 @@ app.get('/api/portfolio/performance', (_req, res) => {
   });
 });
 
+// Live Market Data API Endpoints
+app.get('/api/market/status', async (_req, res) => {
+  try {
+    const status = await getLiveMarketStatus();
+    res.json(status);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to get live market status' });
+  }
+});
+
+app.get('/api/market/quote/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    const quote = await fetchLiveQuote(ticker);
+    res.json(quote);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch live quote' });
+  }
+});
+
+app.post('/api/market/quotes', async (req, res) => {
+  try {
+    const tickers = Array.isArray(req.body?.tickers) ? req.body.tickers : [];
+    if (tickers.length === 0) {
+      return res.json({ quotes: {} });
+    }
+    const quotes = await fetchLiveQuotesBatch(tickers.slice(0, 50));
+    res.json({ quotes });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch batch quotes' });
+  }
+});
+
+app.get('/api/market/candles/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    const range = (req.query.range as string) || '6mo';
+    const interval = (req.query.interval as string) || '1d';
+    const candles = await fetchLiveCandles(ticker, range, interval);
+    res.json({
+      ticker,
+      range,
+      interval,
+      candles_count: candles.length,
+      candles,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch live candles' });
+  }
+});
+
+app.post('/api/market/upstox-config', (req, res) => {
+  const token = req.body?.token || '';
+  setUpstoxToken(token);
+  res.json({
+    success: true,
+    message: token ? 'Upstox Access Token updated successfully' : 'Upstox Token cleared',
+    configured: Boolean(token),
+  });
+});
+
+app.get('/api/market/upstox-config', (_req, res) => {
+  const token = getUpstoxToken();
+  res.json({
+    configured: Boolean(token && token.length > 5),
+    maskedToken: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}` : '',
+  });
+});
+
 // Stock Scanning Endpoints - Anchored to deterministic market session
 app.get('/api/market/session', (_req, res) => {
   const sessionInfo = getMarketSessionInfo();
   res.json(sessionInfo);
 });
 
-app.post('/api/scan', (req, res) => {
-  const { universe = 'ALL', sectors = [], min_conviction = 65 } = req.body || {};
+app.post('/api/scan', async (req, res) => {
+  const { universe = 'ALL', sectors = [], min_conviction = 65, use_live_market = true } = req.body || {};
   const sessionInfo = getMarketSessionInfo();
 
   let pool = ALL_INDIAN_STOCKS_UNIVERSE;
@@ -355,6 +432,28 @@ app.post('/api/scan', (req, res) => {
   // Sort deterministically: highest conviction score first, then win rate
   approved.sort((a, b) => b.signal.conviction_score - a.signal.conviction_score || b.backtest.win_rate - a.backtest.win_rate);
 
+  // If live market is enabled, enrich top approved signals with live market LTPs
+  if (use_live_market && approved.length > 0) {
+    try {
+      const topBatch = approved.slice(0, 20);
+      const tickersToFetch = topBatch.map((item) => item.signal.ticker);
+      const liveQuotes = await fetchLiveQuotesBatch(tickersToFetch);
+      topBatch.forEach((item) => {
+        const quote = liveQuotes[item.signal.ticker];
+        if (quote && quote.isLive && quote.ltp > 0) {
+          item.signal.close_price = quote.ltp;
+          item.signal.comfortable_entry_price = Math.round((quote.ltp - 0.4 * item.signal.atr_14) * 100) / 100;
+          item.signal.target_price = Math.round(item.signal.comfortable_entry_price * (1 + item.signal.expected_return_pct / 100) * 100) / 100;
+          item.signal.is_live = true;
+          item.signal.live_source = quote.source;
+          item.signal.day_change_pct = quote.dayChangePct;
+        }
+      });
+    } catch {
+      // Graceful fallback to simulated baseline
+    }
+  }
+
   res.json({
     approved: approved.slice(0, 25),
     rejected: rejected.slice(0, 15),
@@ -365,10 +464,24 @@ app.post('/api/scan', (req, res) => {
   });
 });
 
-app.post('/api/scan/single/:ticker', (req, res) => {
+app.post('/api/scan/single/:ticker', async (req, res) => {
   const ticker = req.params.ticker.toUpperCase();
   const sessionInfo = getMarketSessionInfo();
   const evalRes = evaluateAnyStock(ticker, undefined, sessionInfo.latestTradingDate);
+  
+  // Try to enrich single scan with live quote
+  try {
+    const liveQuote = await fetchLiveQuote(ticker);
+    if (liveQuote && liveQuote.isLive && liveQuote.ltp > 0) {
+      evalRes.signal.closePrice = liveQuote.ltp;
+      evalRes.signal.comfortableEntryPrice = Math.round((liveQuote.ltp - 0.4 * evalRes.signal.atr14) * 100) / 100;
+      evalRes.signal.targetPrice = Math.round(evalRes.signal.comfortableEntryPrice * (1 + evalRes.signal.expectedReturnPct / 100) * 100) / 100;
+      evalRes.signal.stopLoss = Math.round(Math.max(evalRes.signal.comfortableEntryPrice * 0.935, evalRes.signal.comfortableEntryPrice - 1.8 * evalRes.signal.atr14) * 100) / 100;
+    }
+  } catch {
+    // Keep evalRes
+  }
+
   res.json({
     ticker,
     approved: evalRes.passesFilter,
@@ -410,25 +523,57 @@ app.post('/api/scan/single/:ticker', (req, res) => {
 });
 
 // Market Baselines
-app.get('/api/market/baselines', (_req, res) => {
-  res.json({
-    NIFTY_50: {
-      name: 'NIFTY 50',
-      current_price: 24852.40,
-      day_change_pct: 0.48,
-      return_1m_pct: 2.35,
-      ema_200: 23150.80,
-      is_bullish: true
-    },
-    NIFTY_NEXT_50: {
-      name: 'NIFTY NEXT 50',
-      current_price: 72415.80,
-      day_change_pct: 0.85,
-      return_1m_pct: 4.12,
-      ema_200: 64200.50,
-      is_bullish: true
-    }
-  });
+app.get('/api/market/baselines', async (_req, res) => {
+  try {
+    const [niftyQuote, bankQuote] = await Promise.all([
+      fetchLiveQuote('^NSEI'),
+      fetchLiveQuote('^NSEBANK'),
+    ]);
+
+    res.json({
+      NIFTY_50: {
+        name: 'NIFTY 50',
+        ticker: '^NSEI',
+        current_price: niftyQuote.ltp || 24852.40,
+        day_change_pct: niftyQuote.dayChangePct || 0.48,
+        return_1m_pct: 2.35,
+        ema_200: Math.round((niftyQuote.ltp || 24852.40) * 0.94 * 100) / 100,
+        is_bullish: (niftyQuote.dayChangePct || 0.48) >= 0,
+        is_live: niftyQuote.isLive,
+        source: niftyQuote.source,
+      },
+      NIFTY_NEXT_50: {
+        name: 'NIFTY BANK',
+        ticker: '^NSEBANK',
+        current_price: bankQuote.ltp || 51240.50,
+        day_change_pct: bankQuote.dayChangePct || 0.62,
+        return_1m_pct: 3.12,
+        ema_200: Math.round((bankQuote.ltp || 51240.50) * 0.93 * 100) / 100,
+        is_bullish: (bankQuote.dayChangePct || 0.62) >= 0,
+        is_live: bankQuote.isLive,
+        source: bankQuote.source,
+      }
+    });
+  } catch {
+    res.json({
+      NIFTY_50: {
+        name: 'NIFTY 50',
+        current_price: 24852.40,
+        day_change_pct: 0.48,
+        return_1m_pct: 2.35,
+        ema_200: 23150.80,
+        is_bullish: true
+      },
+      NIFTY_NEXT_50: {
+        name: 'NIFTY NEXT 50',
+        current_price: 72415.80,
+        day_change_pct: 0.85,
+        return_1m_pct: 4.12,
+        ema_200: 64200.50,
+        is_bullish: true
+      }
+    });
+  }
 });
 
 // Seed Database

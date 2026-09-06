@@ -1,12 +1,12 @@
 import React from 'react';
-import { X, Activity } from 'lucide-react';
 import { TradingViewStrategyChart } from './TradingViewStrategyChart';
-import { Candle } from '../types';
+import { Candle, QuantitativeSignal } from '../types';
 
 interface TradingGraphModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
-  ticker: string;
+  stock?: QuantitativeSignal;
+  ticker?: string;
   companyName?: string;
   category?: string;
   closePrice?: number;
@@ -22,11 +22,14 @@ interface TradingGraphModalProps {
   strategyType?: 'Hybrid Breakout' | 'Mean Reversion' | 'Quantitative Trend';
   winRate?: number;
   maxDrawdown?: number;
+  atr14?: number;
+  initialShowTargetFormula?: boolean;
 }
 
 export const TradingGraphModal: React.FC<TradingGraphModalProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
+  stock,
   ticker,
   companyName,
   category,
@@ -40,11 +43,30 @@ export const TradingGraphModal: React.FC<TradingGraphModalProps> = ({
   rsi14,
   macdHist,
   candles,
-  strategyType,
+  strategyType = 'Hybrid Breakout',
   winRate,
   maxDrawdown,
+  atr14,
+  initialShowTargetFormula = false,
 }) => {
   if (!isOpen) return null;
+
+  const resolvedTicker = ticker || stock?.ticker || 'NIFTY';
+  const resolvedCompanyName = companyName || stock?.companyName;
+  const resolvedCategory = category || stock?.marketCapCategory;
+  const resolvedClosePrice = closePrice ?? stock?.closePrice;
+  const resolvedEntryPrice = entryPrice ?? stock?.comfortableEntryPrice;
+  const resolvedTargetPrice = targetPrice ?? stock?.targetPrice;
+  const resolvedStopLoss = stopLoss ?? stock?.stopLoss;
+  const resolvedRiskReward = riskRewardRatio ?? stock?.riskRewardRatio;
+  const resolvedExpectedReturn = expectedReturnPct ?? stock?.expectedReturnPct;
+  const resolvedTechJust = technicalJustification || stock?.technicalJustification;
+  const resolvedRsi14 = rsi14 ?? stock?.rsi14;
+  const resolvedMacdHist = macdHist ?? stock?.macdHist;
+  const resolvedCandles = candles || stock?.history || [];
+  const resolvedWinRate = winRate ?? stock?.backtestWinRate;
+  const resolvedMaxDrawdown = maxDrawdown ?? stock?.backtestMdd;
+  const resolvedAtr14 = atr14 ?? stock?.atr14;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
@@ -53,22 +75,24 @@ export const TradingGraphModal: React.FC<TradingGraphModalProps> = ({
         className="relative w-full max-w-5xl bg-[#0D0D11] border border-[#262633] rounded-2xl shadow-2xl overflow-hidden my-6 animate-in fade-in zoom-in-95 duration-200"
       >
         <TradingViewStrategyChart
-          ticker={ticker}
-          companyName={companyName}
-          category={category}
-          closePrice={closePrice}
-          entryPrice={entryPrice}
-          targetPrice={targetPrice}
-          stopLoss={stopLoss}
-          riskRewardRatio={riskRewardRatio}
-          expectedReturnPct={expectedReturnPct}
-          technicalJustification={technicalJustification}
-          rsi14={rsi14}
-          macdHist={macdHist}
-          candles={candles}
+          ticker={resolvedTicker}
+          companyName={resolvedCompanyName}
+          category={resolvedCategory}
+          closePrice={resolvedClosePrice}
+          entryPrice={resolvedEntryPrice}
+          targetPrice={resolvedTargetPrice}
+          stopLoss={resolvedStopLoss}
+          riskRewardRatio={resolvedRiskReward}
+          expectedReturnPct={resolvedExpectedReturn}
+          technicalJustification={resolvedTechJust}
+          rsi14={resolvedRsi14}
+          macdHist={resolvedMacdHist}
+          candles={resolvedCandles}
           strategyType={strategyType}
-          winRate={winRate}
-          maxDrawdown={maxDrawdown}
+          winRate={resolvedWinRate}
+          maxDrawdown={resolvedMaxDrawdown}
+          atr14={resolvedAtr14}
+          initialShowTargetFormula={initialShowTargetFormula}
           height={500}
           showControls={true}
           onClose={onClose}
