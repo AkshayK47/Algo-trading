@@ -425,6 +425,11 @@ export function evaluateAnyStock(
   const expectedReturnPct = Math.round((16.0 + ((seed % 160) / 10)) * 10) / 10;
   const targetPrice = Math.round(comfortableEntry * (1 + expectedReturnPct / 100) * 100) / 100;
 
+  // Institutional Stop Loss: 1.8x ATR below entry with a max 6.5% risk anchor (per strategy results)
+  const stopLoss = Math.round(Math.max(comfortableEntry * 0.935, comfortableEntry - 1.8 * atr) * 100) / 100;
+  const riskPct = Math.round(((comfortableEntry - stopLoss) / comfortableEntry) * 1000) / 10;
+  const riskRewardRatio = Math.round((expectedReturnPct / (riskPct || 1)) * 10) / 10;
+
   // 12-Month Backtest Win Rate & Maximum Drawdown
   const winRate = Math.round((52.0 + ((seed % 260) / 10)) * 10) / 10;
   const mdd = Math.round((7.5 + ((seed % 120) / 10)) * 10) / 10;
@@ -454,6 +459,9 @@ export function evaluateAnyStock(
     comfortableEntryPrice: comfortableEntry,
     expectedReturnPct,
     targetPrice,
+    stopLoss,
+    riskPct,
+    riskRewardRatio,
     convictionScore: score,
     technicalJustification: justifications.slice(0, 2).join(' | '),
     rsi14: rsi,

@@ -75,21 +75,47 @@ export const PythonCodebaseTab: React.FC = () => {
 
       {/* Windows CMD / PowerShell Instructions Box */}
       <div className="bg-[#111113] border border-[#1E1E24] rounded-lg p-4">
-        <div className="flex items-center space-x-2 text-xs font-bold text-zinc-300 mb-2">
-          <Terminal className="w-4 h-4 text-[#4A90E2]" />
-          <span>How to Run Locally on Windows (CMD or PowerShell)</span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div className="bg-[#0A0A0B] p-3 rounded border border-[#1E1E24] font-mono">
-            <div className="text-zinc-400 font-sans text-[11px] font-semibold mb-1">Option A: One-Click (CMD / PowerShell)</div>
-            <div className="text-emerald-400 font-bold">run_windows.bat</div>
-            <div className="text-zinc-500 text-[10px] mt-1 font-sans">Automatically initializes venv, installs requirements.txt, and starts Streamlit.</div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2 text-xs font-bold text-zinc-200">
+            <Terminal className="w-4 h-4 text-[#4A90E2]" />
+            <span>How to Run Locally on Your Computer (Two Execution Modes)</span>
           </div>
-          <div className="bg-[#0A0A0B] p-3 rounded border border-[#1E1E24] font-mono">
-            <div className="text-zinc-400 font-sans text-[11px] font-semibold mb-1">Option B: Manual Terminal Execution</div>
-            <div className="text-zinc-300">pip install -r requirements.txt</div>
-            <div className="text-[#60A5FA] font-bold">streamlit run app.py</div>
-            <div className="text-zinc-500 text-[10px] mt-1 font-sans">Launches dashboard in your default Windows browser at http://localhost:8501.</div>
+          <span className="text-[11px] text-zinc-400">Windows CMD, PowerShell or macOS/Linux Terminal</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          {/* Option 1: Exact React Preview UI */}
+          <div className="bg-[#0A0A0B] p-3.5 rounded-lg border border-[#4A90E2]/30 shadow-sm font-mono">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-zinc-300 font-sans text-[11px] font-bold">
+                1. Exact Web Preview UI (React + Tailwind)
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#4A90E2]/20 text-[#60A5FA]">
+                Port 3000
+              </span>
+            </div>
+            <div className="text-emerald-400 font-bold mb-0.5">run_preview_ui.bat</div>
+            <div className="text-zinc-400 text-[11px]">or: <span className="text-zinc-200">npm install &amp;&amp; npm run dev</span></div>
+            <div className="text-zinc-500 text-[10px] mt-1.5 font-sans leading-relaxed">
+              Launches the <strong>100% exact interactive UI</strong> shown in Google AI Studio Preview at <span className="text-[#60A5FA]">http://localhost:3000</span>.
+            </div>
+          </div>
+
+          {/* Option 2: Python / Streamlit Engine */}
+          <div className="bg-[#0A0A0B] p-3.5 rounded-lg border border-[#1E1E24] font-mono">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-zinc-300 font-sans text-[11px] font-bold">
+                2. Python Quantitative Engine (Streamlit)
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-300">
+                Port 8501
+              </span>
+            </div>
+            <div className="text-emerald-400 font-bold mb-0.5">run_windows.bat</div>
+            <div className="text-zinc-400 text-[11px]">or: <span className="text-zinc-200">streamlit run app.py</span></div>
+            <div className="text-zinc-500 text-[10px] mt-1.5 font-sans leading-relaxed">
+              Launches the Python-native quantitative dashboard at <span className="text-zinc-300">http://localhost:8501</span> with matching dark terminal theme.
+            </div>
           </div>
         </div>
       </div>

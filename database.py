@@ -44,6 +44,7 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> bool:
         backtest_win_rate REAL NOT NULL,
         technical_justification TEXT NOT NULL,
         captured_close_price REAL NOT NULL,
+        stop_loss REAL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """
@@ -51,6 +52,14 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> bool:
         with get_db_connection(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(create_table_sql)
+
+            # Auto-migrate table if stop_loss column is missing in existing db
+            cursor.execute("PRAGMA table_info(suggestions);")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "stop_loss" not in columns:
+                cursor.execute("ALTER TABLE suggestions ADD COLUMN stop_loss REAL;")
+                logger.info("Migrated suggestions table: added stop_loss column.")
+
             # Create index for fast symbol and date lookups
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_suggestions_ticker ON suggestions(ticker);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_suggestions_date ON suggestions(run_date);")
@@ -71,7 +80,8 @@ def save_suggestion(
     expected_return_pct: float,
     backtest_win_rate: float,
     technical_justification: str,
-    captured_close_price: float
+    captured_close_price: float,
+    stop_loss: Optional[float] = None
 ) -> Optional[int]:
     """
     Safely inserts an approved stock recommendation into the SQLite database.
@@ -81,9 +91,15 @@ def save_suggestion(
     insert_sql = """
     INSERT INTO suggestions (
         run_date, ticker, market_cap_category, entry_price,
-        expected_return_pct, backtest_win_rate, technical_justification, captured_close_price
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        expected_return_pct, backtest_win_rate, technical_justification, captured_close_price, stop_loss
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
     """
+    # Calculate default stop loss if not specified (5.5% / 1.8x ATR institutional standard)
+    if stop_loss is None or float(stop_loss) <= 0:
+        calculated_stop_loss = round(float(entry_price) * 0.945, 2)
+    else:
+        calculated_stop_loss = round(float(stop_loss), 2)
+
     try:
         with get_db_connection(db_path) as conn:
             cursor = conn.cursor()
@@ -104,11 +120,12 @@ def save_suggestion(
                     float(backtest_win_rate),
                     technical_justification,
                     float(captured_close_price),
+                    calculated_stop_loss,
                 )
             )
             conn.commit()
             inserted_id = cursor.lastrowid
-            logger.info(f"Successfully recorded suggestion {ticker} (ID: {inserted_id}) into {db_path}")
+            logger.info(f"Successfully recorded suggestion {ticker} (ID: {inserted_id}) with Stop Loss ₹{calculated_stop_loss} into {db_path}")
             return inserted_id
     except sqlite3.Error as e:
         logger.error(f"Failed to save suggestion for {ticker}: {e}")
@@ -123,7 +140,7 @@ def get_all_suggestions(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
     SELECT 
         id, run_date, ticker, market_cap_category,
         entry_price, expected_return_pct, backtest_win_rate,
-        technical_justification, captured_close_price
+        technical_justification, captured_close_price, stop_loss
     FROM suggestions
     ORDER BY id DESC;
     """

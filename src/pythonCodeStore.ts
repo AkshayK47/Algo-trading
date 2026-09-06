@@ -1505,11 +1505,11 @@ python-dotenv>=1.0.0
   },
   {
     name: "run_windows.bat",
-    description: "One-click Windows Command Prompt (CMD) launcher script.",
+    description: "One-click Windows CMD script to launch the Python Streamlit engine (http://localhost:8501).",
     language: "bat",
     code: `@echo off
 REM =============================================================================
-REM NSE Alpha Quant - Windows CMD One-Click Launcher
+REM NSE Alpha Quant - Windows CMD One-Click Launcher for Python Engine
 REM =============================================================================
 title NSE Alpha Quant Launcher
 color 0A
@@ -1542,6 +1542,68 @@ echo Application URL: http://localhost:8501
 streamlit run app.py --server.port 8501
 
 pause
+`
+  },
+  {
+    name: "run_preview_ui.bat",
+    description: "One-click Windows launcher for the exact React Web Preview UI (http://localhost:3000).",
+    language: "bat",
+    code: `@echo off
+REM =============================================================================
+REM NSE Alpha Quant - Windows Launcher for Exact React Preview UI (Port 3000)
+REM =============================================================================
+title NSE Alpha Quant - React Preview UI
+color 0B
+
+echo =======================================================================
+echo     NSE ALPHA QUANT - REACT WEB PREVIEW TERMINAL (PORT 3000)
+echo =======================================================================
+echo.
+
+where npm >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] Node.js / npm is not found in your Windows PATH!
+    echo Please download and install Node.js from https://nodejs.org/
+    echo This is required to run the exact React/Vite preview application.
+    pause
+    exit /b 1
+)
+
+echo [1/2] Installing dependencies...
+call npm install
+if %errorlevel% neq 0 (
+    echo [ERROR] npm install failed.
+    pause
+    exit /b 1
+)
+
+echo.
+echo [2/2] Launching React Trading Terminal at http://localhost:3000...
+echo Opening your browser to http://localhost:3000 ...
+start http://localhost:3000
+call npm run dev
+
+pause
+`
+  },
+  {
+    name: "README.md",
+    description: "Step-by-step setup documentation, FAQ on starting both servers, and architecture guide.",
+    language: "markdown",
+    code: `# NSE Alpha Quant - Indian Stock Market Advisory & Portfolio Tracker
+
+## Do I Need to Start Both?
+NO, you do NOT need to start both! Pick the one you prefer:
+
+1. **Option 1: Exact React Web Terminal (Port 3000)**
+   - Double-click: \`run_preview_ui.bat\` (or \`npm install && npm run dev\`)
+   - Opens: http://localhost:3000
+   - Exactly matches the Google AI Studio Preview UI.
+
+2. **Option 2: Python / Streamlit Engine (Port 8501)**
+   - Double-click: \`run_windows.bat\` (or \`pip install -r requirements.txt && streamlit run app.py\`)
+   - Opens: http://localhost:8501
+   - Standalone Python data science and backtesting engine with dark theme.
 `
   }
 ];

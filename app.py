@@ -51,20 +51,49 @@ st.set_page_config(
 # Professional institutional trading terminal CSS matching React Preview UI
 st.markdown("""
 <style>
-    /* Dark Terminal Theme Foundation */
-    .stApp {
-        background-color: #0E0E11;
-        color: #E2E8F0;
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+    /* Global Typography & Dark Background */
+    html, body, [class*="css"], .stApp {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        background-color: #0A0A0B !important;
+        color: #F4F4F5 !important;
     }
-    
+
+    code, kbd, samp, pre, .font-mono {
+        font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+    }
+
+    /* Main Container Padding */
+    .main .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1440px !important;
+    }
+
+    /* Header Bar */
+    header[data-testid="stHeader"] {
+        background-color: #0A0A0B !important;
+        border-bottom: 1px solid #1E1E24 !important;
+    }
+
+    /* Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #111114 !important;
+        border-right: 1px solid #1E1E24 !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+        padding-top: 1.5rem !important;
+    }
+
     /* Institutional Card Container */
     .quant-card {
         background: #111113;
         border: 1px solid #1E1E24;
         border-radius: 10px;
         padding: 16px 20px;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        margin-bottom: 14px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
     }
     .quant-card:hover {
         border-color: #2E2E38;
@@ -86,7 +115,7 @@ st.markdown("""
         font-weight: 800;
         color: #FFFFFF;
         margin: 6px 0 2px 0;
-        font-family: monospace;
+        font-family: 'JetBrains Mono', monospace;
     }
     .bench-footer {
         font-size: 12px;
@@ -146,47 +175,106 @@ st.markdown("""
     .tech-pill-val {
         font-size: 15px;
         font-weight: 800;
-        font-family: monospace;
+        font-family: 'JetBrains Mono', monospace;
     }
     
-    /* Tab Styling */
+    /* Tab Styling (Mirrors React Preview Nav Tabs) */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
+        gap: 6px;
         border-bottom: 1px solid #1E1E24;
-        padding-bottom: 4px;
+        padding-bottom: 6px;
+        background-color: transparent !important;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 44px;
-        padding: 0 18px;
+        height: 40px;
+        padding: 0 16px;
         font-weight: 700;
-        font-size: 14px;
-        background-color: #141418;
-        border: 1px solid #22222A;
-        border-radius: 8px 8px 0 0;
-        color: #94A3B8;
+        font-size: 13px;
+        background-color: #111114 !important;
+        border: 1px solid #1E1E24 !important;
+        border-radius: 6px !important;
+        color: #94A3B8 !important;
+        transition: all 0.15s ease-in-out;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #16161C !important;
+        color: #F4F4F5 !important;
+        border-color: #2B2B36 !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #1C1C24 !important;
+        background-color: rgba(74, 144, 226, 0.15) !important;
+        border-color: rgba(74, 144, 226, 0.4) !important;
+        color: #60A5FA !important;
+        box-shadow: 0 2px 8px rgba(74, 144, 226, 0.15);
+    }
+    
+    /* Streamlit Metric Boxes */
+    [data-testid="stMetric"] {
+        background: #111113 !important;
+        border: 1px solid #1E1E24 !important;
+        border-radius: 8px !important;
+        padding: 12px 16px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
+        color: #94A3B8 !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 800 !important;
+        color: #FFFFFF !important;
+    }
+
+    /* Streamlit DataFrame Enhancement */
+    [data-testid="stDataFrame"] {
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        border: 1px solid #1E1E24 !important;
+        background: #111113 !important;
+    }
+
+    /* Buttons Enhancement */
+    button[kind="primary"], .stButton > button[kind="primary"] {
+        background: #4A90E2 !important;
+        border: none !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        border-radius: 6px !important;
+        box-shadow: 0 2px 10px rgba(74, 144, 226, 0.3) !important;
+    }
+    button[kind="secondary"], .stButton > button {
+        background: #141418 !important;
+        border: 1px solid #23232A !important;
+        color: #E2E8F0 !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+    }
+    .stButton > button:hover {
         border-color: #4A90E2 !important;
         color: #FFFFFF !important;
     }
-    
-    /* Streamlit DataFrame & Buttons Enhancement */
-    .stDataFrame {
-        border-radius: 8px;
-        overflow: hidden;
-        border: 1px solid #1E1E24;
+
+    /* Expanders */
+    [data-testid="stExpander"] {
+        background: #111113 !important;
+        border: 1px solid #1E1E24 !important;
+        border-radius: 8px !important;
     }
-    button[kind="primary"] {
-        background: #4A90E2 !important;
-        border: none !important;
+    [data-testid="stExpander"] summary {
         font-weight: 700 !important;
-        border-radius: 6px !important;
-    }
-    button[kind="secondary"] {
-        background: #181820 !important;
-        border: 1px solid #2B2B36 !important;
         color: #E2E8F0 !important;
+    }
+
+    /* Form Inputs & Selects */
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div {
+        background-color: #0D0D10 !important;
+        border-color: #23232A !important;
+        color: #F4F4F5 !important;
         border-radius: 6px !important;
     }
 </style>
@@ -807,6 +895,9 @@ with tab_predictions:
                 today_str = datetime.now().strftime("%Y-%m-%d")
                 saved_count = 0
                 for sig, bt, _ in approved_list:
+                    sl_val = getattr(sig, 'stop_loss', None)
+                    if not sl_val or sl_val <= 0:
+                        sl_val = round(max(sig.comfortable_entry_price * 0.92, sig.comfortable_entry_price - (1.5 * getattr(sig, 'atr_14', sig.comfortable_entry_price * 0.03))), 2)
                     res_id = save_suggestion(
                         db_path=db_path_input,
                         run_date=today_str,
@@ -816,7 +907,8 @@ with tab_predictions:
                         expected_return_pct=sig.expected_return_pct,
                         backtest_win_rate=sig.backtest_win_rate,
                         technical_justification=sig.technical_justification,
-                        captured_close_price=sig.close_price
+                        captured_close_price=sig.close_price,
+                        stop_loss=sl_val
                     )
                     if res_id:
                         saved_count += 1
@@ -1045,22 +1137,67 @@ with tab_portfolio:
                     return 'color: #EF4444; font-weight: bold;'
             return ''
 
-        # Prepare formatted view
+        # Prepare formatted view with Stop Loss and Trade Setup Indicators
         view_df = df_port[[
             "run_date", "ticker", "market_cap_category", "entry_price",
-            "captured_close_price", "current_price", "current_return_pct",
-            "pnl_rupees", "expected_return_pct", "target_price", "status"
+            "captured_close_price", "current_price", "stop_loss", "risk_pct",
+            "target_price", "expected_return_pct", "risk_reward_ratio",
+            "distance_to_stop_pct", "stop_status", "current_return_pct", "pnl_rupees", "status"
         ]].copy()
 
         view_df.columns = [
             "Logged Date", "Ticker", "Category", "Entry Price (₹)",
-            "Captured Close (₹)", "Current LTP (₹)", "Current Return (%)",
-            "P&L (₹)", "Expected Return (%)", "Target Price (₹)", "Status"
+            "Captured Close (₹)", "Current LTP (₹)", "Stop Loss (₹)", "Risk (%)",
+            "Target Price (₹)", "Expected Return (%)", "Risk : Reward",
+            "Stop Buffer (%)", "Stop Status", "Current Return (%)", "P&L (₹)", "Status"
         ]
 
         # Render styled dataframe with color highlights
         styled_table = view_df.style.applymap(highlight_pnl, subset=["Current Return (%)", "P&L (₹)"])
         st.dataframe(styled_table, use_container_width=True, height=350)
+
+        # Institutional Trade Setup & Position Sizing Guide
+        with st.expander("🎯 Institutional Trade Setup & Position Sizing Guide", expanded=True):
+            st.markdown("""
+            ### How to Set the Trade (Institutional Strategy Blueprint):
+            1. **Comfortable Entry:** Place a Limit Buy order at the **Comfortable Entry Price** (or within 0.5% of current price). Avoid chasing extended rallies.
+            2. **Hard Stop Loss (Mandatory GTT):** Anchor your Stop Loss at the indicated **Stop Loss (₹)** level (derived from 1.8× ATR volatility cushion, ~4.5%–6.0% risk anchor). *Never cancel or widen your stop loss.*
+            3. **Trailing Stop Protocol:** Once the position gains **+8% or 1.5× ATR**, modify the GTT stop to **Breakeven (Entry Price)** to ensure a completely risk-free trade.
+            4. **Target Exit Management:** Book 50% profits at the **Target Price (3–6M)**. Trail the remaining 50% shares along the 20-day Exponential Moving Average (EMA).
+            """)
+
+            st.markdown("---")
+            st.subheader("🧮 Dynamic Position Sizing Calculator (Fixed Risk Budget)")
+            ts_ticker = st.selectbox("Select Tracked Stock for Trade Setup Calculation:", df_port["ticker"].tolist())
+            row_sel = df_port[df_port["ticker"] == ts_ticker].iloc[0]
+
+            c_cap, c_risk = st.columns(2)
+            with c_cap:
+                user_cap = st.number_input("Your Total Trading Capital (₹):", min_value=10000.0, value=100000.0, step=10000.0)
+            with c_risk:
+                user_risk_pct = st.selectbox("Risk Tolerance per Trade (%):", [1.0, 1.5, 2.0, 3.0], index=1)
+
+            entry_p = float(row_sel["entry_price"])
+            sl_p = float(row_sel["stop_loss"])
+            target_p = float(row_sel["target_price"])
+            risk_per_sh = max(0.5, entry_p - sl_p)
+            reward_per_sh = max(1.0, target_p - entry_p)
+
+            max_risk_rupees = (user_cap * user_risk_pct) / 100.0
+            rec_qty = max(1, int(max_risk_rupees // risk_per_sh))
+            allocated_cap = rec_qty * entry_p
+            proj_profit = rec_qty * reward_per_sh
+            max_loss = rec_qty * risk_per_sh
+
+            r1, r2, r3, r4 = st.columns(4)
+            with r1:
+                st.metric("Recommended Quantity", f"{rec_qty} shares")
+            with r2:
+                st.metric("Capital Allocated", f"₹{allocated_cap:,.0f}", f"{(allocated_cap/user_cap)*100:.1f}% of total")
+            with r3:
+                st.metric("Max Loss if Stop Hit", f"-₹{max_loss:,.0f}", f"-{user_risk_pct:.1f}% risk cap")
+            with r4:
+                st.metric("Projected Profit at Target", f"+₹{proj_profit:,.0f}", f"+{row_sel['expected_return_pct']:.1f}%")
 
         # Portfolio Delete / Management Option
         with st.expander("🛠️ Manage Individual Database Records"):

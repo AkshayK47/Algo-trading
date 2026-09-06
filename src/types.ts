@@ -35,6 +35,9 @@ export interface QuantitativeSignal {
   comfortableEntryPrice: number;
   expectedReturnPct: number;
   targetPrice: number;
+  stopLoss?: number;
+  riskPct?: number;
+  riskRewardRatio?: number;
   convictionScore: number; // 0 - 100
   technicalJustification: string;
   rsi14: number;
@@ -86,6 +89,12 @@ export interface SuggestionRecord {
   current_return_pct?: number;
   pnl_rupees?: number;
   status?: string;
+  // Stop Loss & Trade Setup Metrics
+  stop_loss?: number;
+  risk_pct?: number;
+  risk_reward_ratio?: number;
+  distance_to_stop_pct?: number;
+  stop_status?: 'SAFE' | 'WARNING' | 'BREACHED';
 }
 
 export interface PortfolioSummary {
@@ -97,4 +106,7 @@ export interface PortfolioSummary {
   worstPerformer: string;
   worstReturnPct: number;
   totalPnlPoints: number;
+  avgRiskRewardRatio?: number;
+  positionsAboveStop?: number;
+  avgStopBufferPct?: number;
 }

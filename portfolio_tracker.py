@@ -88,20 +88,43 @@ def calculate_portfolio_performance(
         current_return_pct = round(((current_price - captured_close) / captured_close) * 100.0, 2)
         pnl_rupees = round(current_price - captured_close, 2)
 
+        # Stop loss calculation (strategy standard: ~5.5% / 1.8x ATR below entry)
+        stop_loss_val = r.get("stop_loss") if isinstance(r, dict) else None
+        if stop_loss_val is None or float(stop_loss_val) <= 0:
+            stop_loss = round(entry_price * 0.945, 2)
+        else:
+            stop_loss = round(float(stop_loss_val), 2)
+
+        risk_pct = round(((entry_price - stop_loss) / entry_price) * 100.0, 2)
+        risk_reward_ratio = round(expected_ret / max(0.1, risk_pct), 2)
+        dist_to_stop_pct = round(((current_price - stop_loss) / current_price) * 100.0, 2)
+
         # Status determination
         target_price = round(entry_price * (1.0 + (expected_ret / 100.0)), 2)
-        if current_price >= target_price:
+        if current_price <= stop_loss:
+            status = "Stop Loss Hit"
+            status_color = "#EF4444"
+            stop_status = "BREACHED"
+        elif current_price >= target_price:
             status = "Target Achieved"
             status_color = "#10B981"  # Emerald green
+            stop_status = "SAFE"
+        elif dist_to_stop_pct <= 3.0:
+            status = "Near Stop"
+            status_color = "#F59E0B"  # Amber
+            stop_status = "NEAR STOP"
         elif current_return_pct > 0:
             status = "In Profit"
             status_color = "#059669"  # Green
+            stop_status = "SAFE"
         elif current_return_pct == 0:
             status = "Breakeven"
             status_color = "#6B7280"  # Gray
+            stop_status = "SAFE"
         else:
-            status = "Under Pressure"
+            status = "Drawdown"
             status_color = "#EF4444"  # Red
+            stop_status = "SAFE"
 
         enriched_rows.append({
             "id": r["id"],
@@ -111,6 +134,11 @@ def calculate_portfolio_performance(
             "entry_price": entry_price,
             "captured_close_price": captured_close,
             "current_price": current_price,
+            "stop_loss": stop_loss,
+            "risk_pct": risk_pct,
+            "risk_reward_ratio": risk_reward_ratio,
+            "distance_to_stop_pct": dist_to_stop_pct,
+            "stop_status": stop_status,
             "current_return_pct": current_return_pct,
             "pnl_rupees": pnl_rupees,
             "expected_return_pct": expected_ret,

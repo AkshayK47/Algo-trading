@@ -96,11 +96,27 @@ export default function App() {
           const pnlRupees = Math.round((currentPrice - rec.captured_close_price) * 100) / 100;
           const targetPrice = rec.entry_price * (1.0 + rec.expected_return_pct / 100);
 
+          // Stop Loss & Risk Metrics derived from strategy rules (1.8x ATR / ~5.5% anchor)
+          const stopLoss = rec.stop_loss ?? Math.round(rec.entry_price * 0.945 * 100) / 100;
+          const riskPct = rec.risk_pct ?? Math.round(((rec.entry_price - stopLoss) / rec.entry_price) * 1000) / 10;
+          const riskRewardRatio = rec.risk_reward_ratio ?? Math.round((rec.expected_return_pct / (riskPct || 1)) * 10) / 10;
+          const distanceToStopPct = Math.round(((currentPrice - stopLoss) / currentPrice) * 1000) / 10;
+
+          let stopStatus: 'SAFE' | 'WARNING' | 'BREACHED' = 'SAFE';
           let status = 'In Profit';
-          if (currentPrice >= targetPrice) {
+
+          if (currentPrice <= stopLoss) {
+            status = 'Stop Loss Hit';
+            stopStatus = 'BREACHED';
+          } else if (distanceToStopPct <= 3.0) {
+            status = 'Near Stop';
+            stopStatus = 'WARNING';
+          } else if (currentPrice >= targetPrice) {
             status = 'Target Achieved';
+            stopStatus = 'SAFE';
           } else if (currentReturnPct < 0) {
             status = 'Drawdown';
+            stopStatus = 'SAFE';
           }
 
           return {
@@ -109,6 +125,11 @@ export default function App() {
             current_return_pct: currentReturnPct,
             pnl_rupees: pnlRupees,
             status,
+            stop_loss: stopLoss,
+            risk_pct: riskPct,
+            risk_reward_ratio: riskRewardRatio,
+            distance_to_stop_pct: distanceToStopPct,
+            stop_status: stopStatus,
           };
         })
       );
@@ -134,6 +155,9 @@ export default function App() {
         worstPerformer: 'None',
         worstReturnPct: 0,
         totalPnlPoints: 0,
+        avgRiskRewardRatio: 0,
+        positionsAboveStop: 0,
+        avgStopBufferPct: 0,
       };
     }
 
@@ -151,6 +175,11 @@ export default function App() {
     }
 
     const totalPnl = records.reduce((acc, curr) => acc + (curr.pnl_rupees ?? 0), 0);
+    const safePositions = records.filter(
+      (r) => r.stop_status !== 'BREACHED' && (r.current_price ?? r.captured_close_price) > (r.stop_loss ?? 0)
+    ).length;
+    const avgRR = records.reduce((acc, curr) => acc + (curr.risk_reward_ratio ?? 3.5), 0) / (total || 1);
+    const avgBuffer = records.reduce((acc, curr) => acc + (curr.distance_to_stop_pct ?? 6.5), 0) / (total || 1);
 
     return {
       totalPicks: total,
@@ -161,6 +190,9 @@ export default function App() {
       worstPerformer: records[worstIdx]?.ticker || 'N/A',
       worstReturnPct: returns[worstIdx] || 0,
       totalPnlPoints: Math.round(totalPnl * 100) / 100,
+      avgRiskRewardRatio: Math.round(avgRR * 10) / 10,
+      positionsAboveStop: safePositions,
+      avgStopBufferPct: Math.round(avgBuffer * 10) / 10,
     };
   }, [records]);
 
@@ -265,6 +297,11 @@ export default function App() {
       // Check if already in DB for today
       const exists = records.some((r) => r.ticker === sig.ticker && r.run_date === today);
       if (!exists) {
+        const stopLoss = sig.stopLoss ?? Math.round(sig.comfortableEntryPrice * 0.945 * 100) / 100;
+        const riskPct = sig.riskPct ?? Math.round(((sig.comfortableEntryPrice - stopLoss) / sig.comfortableEntryPrice) * 1000) / 10;
+        const rr = sig.riskRewardRatio ?? Math.round((sig.expectedReturnPct / (riskPct || 1)) * 10) / 10;
+        const dist = Math.round(((sig.closePrice - stopLoss) / sig.closePrice) * 1000) / 10;
+
         newRecords.push({
           id: Date.now() + Math.floor(Math.random() * 1000),
           run_date: today,
@@ -279,6 +316,11 @@ export default function App() {
           current_return_pct: 0,
           pnl_rupees: 0,
           status: 'In Profit',
+          stop_loss: stopLoss,
+          risk_pct: riskPct,
+          risk_reward_ratio: rr,
+          distance_to_stop_pct: dist,
+          stop_status: 'SAFE',
         });
       }
     });
@@ -298,8 +340,11 @@ export default function App() {
       'Category',
       'Close Price',
       'Comfortable Entry',
+      'Stop Loss Price',
+      'Risk (%)',
       'Expected Return (%)',
       'Target Price',
+      'Risk : Reward Ratio',
       'Conviction Score',
       '12M Win Rate (%)',
       '12M Max DD (%)',
@@ -310,8 +355,11 @@ export default function App() {
       s.marketCapCategory,
       s.closePrice,
       s.comfortableEntryPrice,
+      s.stopLoss ?? Math.round(s.comfortableEntryPrice * 0.945 * 100) / 100,
+      s.riskPct ?? 5.5,
       s.expectedReturnPct,
       s.targetPrice,
+      `1:${s.riskRewardRatio ?? 3.4}`,
       s.convictionScore,
       s.backtestWinRate,
       s.backtestMdd,
